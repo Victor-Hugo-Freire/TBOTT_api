@@ -1,19 +1,27 @@
+---
+name: Nova issue
+about: Registrar um problema, uma melhoria ou uma nova funcionalidade na API
+title: ""
+labels: ""
+assignees: ""
+---
+
 # Issue
 
 ## Descrição
 
-Descreva o problema, a necessidade ou a melhoria proposta e explique o motivo da implementação
+Descreva o problema, a necessidade ou a melhoria proposta e explique o motivo da implementação.
 
 ## Objetivo
 
-Descreva o resultado esperado após a implementação
+Descreva o resultado esperado após a implementação.
 
 ## Critérios de aceitação
 
-- [ ] O problema descrito foi resolvido/a melhoria foi implementada?
-- [ ] A responsividade foi verificada, quando aplicável?
-- [ ] As funcionalidades existentes relacionadas à alteração continuam funcionando?
-- [ ] Os cenários principais foram testados?
+- [ ] O problema descrito foi resolvido ou a melhoria foi implementada.
+- [ ] As funcionalidades existentes relacionadas à alteração continuam funcionando.
+- [ ] Os principais cenários foram testados.
+- [ ] O tratamento de erros foi verificado, quando aplicável.
 
 ## Labels sugeridas
 
@@ -39,8 +47,8 @@ Descreva o resultado esperado após a implementação
 
 ## Referências (se necessário)
 
-Adicione links, imagens, documentação ou outras issues relacionadas
+Adicione links, documentação ou outras issues relacionadas.
 
 ## Notas adicionais (se necessário)
 
-Informe pontos de atenção, dependências ou detalhes relevantes
+Informe pontos de atenção, dependências ou detalhes técnicos relevantes.
