@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TBOTT API - Documentação</title>
+    <link rel="stylesheet" href="/docs/css/docs.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="topbar">
+        <h1>Documentação da API</h1>
+        <span class="badge">TBOTT API</span>
+      </header>
+
+      <div class="toolbar" aria-label="Filtros da documentação">
+        <input id="searchInput" type="search" placeholder="Buscar rota ou descrição" aria-label="Buscar rota ou descrição" />
+
+        <select id="routeFilter" aria-label="Filtrar por rota">
+          <option value="all">Todas as rotas</option>
+        </select>
+
+        <select id="methodFilter" aria-label="Filtrar por método HTTP">
+          <option value="all">Todos os métodos</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="PATCH">PATCH</option>
+          <option value="DELETE">DELETE</option>
+          <option value="HEAD">HEAD</option>
+        </select>
+
+        <select id="categoryFilter" aria-label="Filtrar por categoria">
+          <option value="all">Todas as categorias</option>
+        </select>
+      </div>
+
+      <main id="routesContainer" aria-live="polite">
+        <p class="empty-state">Carregando documentação...</p>
+      </main>
+    </div>
+
+    <script src="/docs/js/docs.js" defer></script>
+  </body>
+</html>
