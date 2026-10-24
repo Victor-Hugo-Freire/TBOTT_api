@@ -3,7 +3,8 @@ import { closeDatabasePool, testDatabaseConnection } from './config/database.js'
 import config from './config/index.js';
 
 const server = app.listen(config.port, async () => {
-    console.log(`API rodando na porta ${config.port}`);
+    console.log(`Documentação interativa: http://localhost:${config.port}/api`);
+    console.log(`Swagger UI: http://localhost:${config.port}/api-docs`);
 
     const databaseStatus = await testDatabaseConnection();
     if (databaseStatus.connected) {

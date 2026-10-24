@@ -80,7 +80,7 @@ body {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(150px, 190px) minmax(170px, 220px);
+  grid-template-columns: minmax(220px, 1fr) repeat(3, minmax(150px, 190px));
   gap: 12px;
   margin: 26px 0 32px;
 }

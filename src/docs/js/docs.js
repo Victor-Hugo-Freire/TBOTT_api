@@ -1,5 +1,6 @@
 const routeContainer = document.getElementById('routesContainer');
 const searchInput = document.getElementById('searchInput');
+const routeFilter = document.getElementById('routeFilter');
 const methodFilter = document.getElementById('methodFilter');
 const categoryFilter = document.getElementById('categoryFilter');
 
@@ -54,27 +55,25 @@ const renderRouteCard = (route) => {
   `;
 };
 
-const isBusinessRoute = (route) => route.kind !== 'infraestrutura' && route.category !== 'Infraestrutura';
-
 const renderDocumentation = () => {
+  const selectedRoute = routeFilter.value;
   const selectedMethod = methodFilter.value;
   const selectedCategory = categoryFilter.value;
   const searchValue = searchInput.value.trim().toLowerCase();
 
-  const businessRoutes = routes.filter(isBusinessRoute);
-
-  const filteredRoutes = businessRoutes.filter((route) => {
+  const filteredRoutes = routes.filter((route, index) => {
+    const matchesRoute = selectedRoute === 'all' || String(index) === selectedRoute;
     const matchesMethod = selectedMethod === 'all' || route.method === selectedMethod;
     const matchesCategory = selectedCategory === 'all' || route.category === selectedCategory;
     const matchesSearch = !searchValue || `${route.path} ${route.description}`.toLowerCase().includes(searchValue);
 
-    return matchesMethod && matchesCategory && matchesSearch;
+    return matchesRoute && matchesMethod && matchesCategory && matchesSearch;
   });
 
   const categories = groupRoutesByCategory(filteredRoutes);
 
   if (!categories.length) {
-    routeContainer.innerHTML = '<div class="empty-state">Nenhuma rota de negócio cadastrada. A API está preparada para receber novos endpoints sem duplicar a documentação.</div>';
+    routeContainer.innerHTML = '<div class="empty-state">Nenhuma rota corresponde aos filtros selecionados.</div>';
     return;
   }
 
@@ -89,11 +88,21 @@ const renderDocumentation = () => {
 };
 
 const populateCategoryFilter = () => {
-  const categories = groupRoutesByCategory(routes.filter(isBusinessRoute));
+  const categories = groupRoutesByCategory(routes);
   const options = ['<option value="all">Todas as categorias</option>']
     .concat(categories.map(([category]) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`));
 
   categoryFilter.innerHTML = options.join('');
+};
+
+const populateRouteFilter = () => {
+  const options = ['<option value="all">Todas as rotas</option>']
+    .concat(routes.map((route, index) => {
+      const label = `${route.method} ${route.path}`;
+      return `<option value="${index}">${escapeHtml(label)}</option>`;
+    }));
+
+  routeFilter.innerHTML = options.join('');
 };
 
 const initializeDocumentation = async () => {
@@ -106,6 +115,7 @@ const initializeDocumentation = async () => {
     const payload = await response.json();
     routes = Array.isArray(payload.routes) ? payload.routes : [];
 
+    populateRouteFilter();
     populateCategoryFilter();
     renderDocumentation();
   } catch (error) {
@@ -114,6 +124,7 @@ const initializeDocumentation = async () => {
 };
 
 searchInput.addEventListener('input', renderDocumentation);
+routeFilter.addEventListener('change', renderDocumentation);
 methodFilter.addEventListener('change', renderDocumentation);
 categoryFilter.addEventListener('change', renderDocumentation);
 
