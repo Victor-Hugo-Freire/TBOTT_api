@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import pg from 'pg';
 
 import config from './index.js';
@@ -6,7 +7,24 @@ const { Pool } = pg;
 
 let databasePool = null;
 
-export const buildPoolConfig = (databaseUrl = config.databaseUrl || process.env.DATABASE_URL) => {
+export const buildSslConfig = (caPath = config.databaseSslCaPath) => {
+    if (caPath) {
+        // Recomendado: valida o certificado do servidor com o CA baixado do painel do Supabase.
+        return {
+            ca: readFileSync(caPath, 'utf8'),
+            rejectUnauthorized: true
+        };
+    }
+
+    console.warn('[database] DATABASE_SSL_CA_PATH não configurada: a conexão é criptografada, mas o certificado do servidor não é validado.');
+
+    return { rejectUnauthorized: false };
+};
+
+export const buildPoolConfig = (
+    databaseUrl = config.databaseUrl || process.env.DATABASE_URL,
+    caPath = config.databaseSslCaPath
+) => {
     if (!databaseUrl) {
         return {
             connectionString: undefined,
@@ -18,7 +36,7 @@ export const buildPoolConfig = (databaseUrl = config.databaseUrl || process.env.
 
     return {
         connectionString: databaseUrl,
-        ...(requiresRemoteSsl ? { ssl: { rejectUnauthorized: false } } : {})
+        ...(requiresRemoteSsl ? { ssl: buildSslConfig(caPath) } : {})
     };
 };
 
