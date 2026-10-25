@@ -63,6 +63,7 @@ A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam
 
 | Rota                                     | Descrição                                                   |
 | ---------------------------------------- | ----------------------------------------------------------- |
+| `POST /api/auth/register`                | Cadastro público de jogador via Supabase Auth; usa `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` |
 | `GET /api/characters`                    | Personagens ordenados por `display_order`                   |
 | `GET /api/ranking?limit=50&offset=0`     | Melhor vitória de cada jogador, do menor para o maior tempo |
 | `GET /health` e `GET /api/system/status` | Situação da API e do banco                                  |
@@ -95,7 +96,7 @@ select tablename, rowsecurity from pg_tables where schemaname = 'public';
 
 ## Pendências
 
-- Cadastro, login, sessão e a rota que registra partidas pertencem às issues #7, #8 e #9.
+- Login, sessão e a rota que registra partidas pertencem às issues #8 e #9.
 - `sprite_path` fica nulo até o sprite estar no TBOTT_web. Os outros dois personagens e os atributos entram quando forem definidos.
 
 ## Como criar uma rota
