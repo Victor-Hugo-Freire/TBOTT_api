@@ -9,6 +9,7 @@ import { registerAuthRoutes } from './routes/auth.routes.js';
 import { registerCharacterRoutes } from './routes/character.routes.js';
 import { registerRankingRoutes } from './routes/ranking.routes.js';
 import { registerSystemRoutes } from './routes/system.routes.js';
+import { AppError } from './utils/httpError.js';
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,24 +22,48 @@ registerAuthRoutes(app);
 registerCharacterRoutes(app);
 registerRankingRoutes(app);
 
-app.use((error, _req, res, _next) => {
-  const statusCode = Number.isInteger(error?.statusCode) ? error.statusCode : 500;
-  const code = error?.code ?? 'INTERNAL_ERROR';
-  const message = statusCode >= 500
-    ? 'Não foi possível concluir a operação no momento.'
-    : (error?.message ?? 'Requisição inválida.');
+const GENERIC_ERROR_MESSAGE = 'Não foi possível concluir a operação no momento.';
 
-  if (statusCode >= 500) {
-    console.error('[api] Erro interno:', error instanceof Error ? error.message : error);
+// Erros no formato { error, code, details? }. "error" é a mensagem, como nas outras rotas;
+// "code" é um código fixo para o front-end decidir o que mostrar.
+app.use((error, _req, res, next) => {
+  if (res.headersSent) {
+    next(error);
+    return;
   }
 
-  const payload = {
-    code,
-    message,
-    ...(error?.details ? { details: error.details } : {})
-  };
+  // JSON malformado: a mensagem do parser repete trechos do corpo, que pode conter a senha.
+  if (error?.type === 'entity.parse.failed') {
+    res.status(400).json({ error: 'O corpo da requisição não é um JSON válido.', code: 'INVALID_JSON' });
+    return;
+  }
 
-  res.status(statusCode).json(payload);
+  if (error instanceof AppError) {
+    const isServerError = error.statusCode >= 500;
+
+    if (isServerError) {
+      console.error(`[api] ${error.code}: ${error.message}`);
+    }
+
+    res.status(error.statusCode).json({
+      error: isServerError ? GENERIC_ERROR_MESSAGE : error.message,
+      code: error.code,
+      ...(error.details ? { details: error.details } : {})
+    });
+    return;
+  }
+
+  // Outros erros (ex.: corpo grande demais) nunca repassam a mensagem original ao cliente.
+  const isClientError = Number.isInteger(error?.status) && error.status >= 400 && error.status < 500;
+
+  if (!isClientError) {
+    console.error('[api] Erro inesperado:', error?.stack ?? error);
+  }
+
+  res.status(isClientError ? error.status : 500).json({
+    error: isClientError ? 'Requisição inválida.' : GENERIC_ERROR_MESSAGE,
+    code: isClientError ? 'INVALID_REQUEST' : 'INTERNAL_ERROR'
+  });
 });
 
 const swaggerSpec = swaggerJsdoc({

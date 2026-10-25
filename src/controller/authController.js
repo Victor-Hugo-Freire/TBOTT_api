@@ -1,5 +1,5 @@
 import { registerUser, registerUserSchema } from '../service/authService.js';
-import { AppError } from '../utils/httpError.js';
+import { AppError, normalizeValidationDetails } from '../utils/httpError.js';
 
 export const registerUserController = async (req, res, next) => {
   const validation = registerUserSchema.safeParse(req.body);
@@ -9,21 +9,18 @@ export const registerUserController = async (req, res, next) => {
       statusCode: 400,
       code: 'INVALID_REGISTER_DATA',
       message: 'Dados de cadastro inválidos.',
-      details: validation.error.issues.map((issue) => ({
-        field: issue.path.join('.') || 'request',
-        message: issue.message
-      }))
+      details: normalizeValidationDetails(validation.error.issues)
     }));
     return;
   }
 
   try {
-    const result = await registerUser(validation.data);
+    // Nos testes, app.locals.authContext troca o Supabase e o banco por versões em memória.
+    // Na API de verdade ele não existe, e o service usa o Supabase e o PostgreSQL reais.
+    const result = await registerUser(validation.data, req.app.locals.authContext);
 
-    res.status(201).json({
-      ok: true,
-      data: result
-    });
+    // Sem envelope, como nas outras rotas ({ characters }, { ranking, ... }).
+    res.status(201).json(result);
   } catch (error) {
     next(error);
   }
