@@ -4,7 +4,7 @@ Backend do **The Binding of Tung Tung (TBOTT)**, jogo web roguelike inspirado em
 
 O **Supabase** hospeda o PostgreSQL, que a API acessa diretamente com `pg` e `DATABASE_URL`, e cuida da autenticação (cadastro, senha e confirmação de e-mail).
 
-**Tecnologias:** Node.js, Express 5, pg, zod, dotenv, Swagger, node:test, PGlite (testes) e npm.
+**Tecnologias:** Node.js, Express 5, pg, Supabase JS (Auth), ws, zod, dotenv, Swagger, node:test, PGlite (testes) e npm.
 
 ## Estrutura
 
@@ -17,6 +17,7 @@ src/routes/      declaração das rotas
 src/controller/  recebe a requisição e monta a resposta
 src/service/     regras de negócio e validação
 src/repository/  consultas SQL
+src/utils/       erro padrão da API (AppError)
 src/docs/        catálogo de rotas e Swagger
 tests/           testes automatizados
 ```
@@ -63,12 +64,46 @@ A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam
 
 | Rota                                     | Descrição                                                   |
 | ---------------------------------------- | ----------------------------------------------------------- |
+| `POST /api/auth/register`                | Cadastro de jogador (Supabase Auth + perfil)                |
 | `GET /api/characters`                    | Personagens ordenados por `display_order`                   |
 | `GET /api/ranking?limit=50&offset=0`     | Melhor vitória de cada jogador, do menor para o maior tempo |
 | `GET /health` e `GET /api/system/status` | Situação da API e do banco                                  |
 | `/api` e `/api-docs`                     | Documentação e Swagger                                      |
 
 No ranking, `limit` vai de 1 a 100 e `offset` começa em 0. O tempo vem em milissegundos (`durationMs`). Desempate: quem terminou primeiro. Parâmetros inválidos retornam 400, e banco indisponível retorna 503.
+
+## Cadastro de jogador
+
+`POST /api/auth/register` recebe `{ "username", "email", "password" }` e usa `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`.
+
+1. Valida os dados: nome com a mesma regra do banco; senha de 8 a 72 caracteres, sem ser só espaços.
+2. Recusa um nome já usado (sem diferenciar maiúsculas) **antes** de criar a conta.
+3. Cria a conta com `supabase.auth.signUp`. O gatilho `on_auth_user_created` cria o perfil na mesma transação, com o mesmo id.
+4. Responde `201`:
+
+```json
+{
+  "status": "pending_email_confirmation",
+  "requiresEmailConfirmation": true,
+  "usernameChanged": false,
+  "user": { "id": "0b7f6c1e-...", "email": "jogador.teste@example.com" },
+  "profile": { "id": "0b7f6c1e-...", "username": "jogador_123" }
+}
+```
+
+- `status` é `registered` quando a confirmação de e-mail está desligada. A API nunca devolve tokens.
+- `usernameChanged: true` significa que o nome pedido não foi mantido: outro cadastro ocupou o nome no mesmo instante e o banco gravou `jogador_<hex>`, ou o e-mail já tinha um cadastro pendente com outro nome. Mostre sempre `profile.username`.
+
+**Erros** vêm como `{ "error": "mensagem", "code": "CODIGO", "details": [...] }`. O campo `error` tem o mesmo papel que nas outras rotas; `code` e `details` são extras do cadastro. Em erros 5xx a mensagem é sempre genérica e o detalhe fica só no log. A lista de códigos está no Swagger.
+
+**E-mail repetido.** Com "Confirm email" ligado, o Supabase não avisa que o e-mail já existe: devolve um usuário falso (`identities: []`), para esconder quem tem conta. Por decisão do projeto, a API reconhece esse caso e responde `409 AUTH_USER_ALREADY_EXISTS`, igual a quando a confirmação está desligada. A consequência é que o endpoint revela se um e-mail tem conta.
+
+**Configuração no painel do Supabase (Authentication):**
+
+- _Confirm email_: ligado no projeto da equipe. Num projeto de testes pode ser desligado.
+- _URL Configuration → Site URL_: para onde o link de confirmação leva. Use o endereço do TBOTT_web (em desenvolvimento, `http://localhost:5173`). O front ainda não tem tela de retorno, mas a conta é confirmada ao abrir o link, antes do redirecionamento.
+- O SMTP padrão só envia e-mails para membros da organização do Supabase e tem um limite baixo por hora. Para outros endereços, configure um SMTP próprio. Domínios de exemplo, como `example.com`, são recusados.
+- **Limite de e-mails:** com a confirmação ligada, cada cadastro novo envia um e-mail. O SMTP padrão permite poucos e-mails por hora para o projeto inteiro (o número fica em _Authentication → Rate Limits_), e o mesmo endereço só pode receber outro e-mail depois de 60 segundos. Ao passar do limite, a API responde `429 AUTH_RATE_LIMITED`. Nos testes manuais, deixe a confirmação desligada e ligue só para testar o e-mail de confirmação.
 
 ## Executar e testar
 
@@ -84,7 +119,7 @@ Invoke-RestMethod http://localhost:8000/api/characters | ConvertTo-Json -Depth 5
 Invoke-RestMethod "http://localhost:8000/api/ranking?limit=10" | ConvertTo-Json -Depth 5
 ```
 
-`npm test` usa um PostgreSQL em memória (PGlite). Não precisa de credenciais e não toca no banco real. Os testes cobrem migrações, seed, RLS, a proteção de `schema_migrations` e o ranking.
+`npm test` usa um PostgreSQL em memória (PGlite) e, no cadastro, um Supabase Auth simulado. Não precisa de credenciais e não toca no banco nem no Supabase reais: os testes do cadastro ignoram o `.env` e usam endereços falsos. Os testes cobrem migrações, seed, RLS, a proteção de `schema_migrations`, o ranking e o cadastro (validação, erros HTTP, e-mail repetido e disputa pelo mesmo nome).
 
 Para conferir o banco no SQL Editor do Supabase:
 
@@ -95,7 +130,9 @@ select tablename, rowsecurity from pg_tables where schemaname = 'public';
 
 ## Pendências
 
-- Cadastro, login, sessão e a rota que registra partidas pertencem às issues #7, #8 e #9.
+- Login, sessão e a rota que registra partidas pertencem às issues #8 e #9.
+- Cadastro: reenviar o e-mail de confirmação e trocar o nome de usuário (útil quando o banco grava um nome provisório).
+- CORS, para o TBOTT_web chamar a API pelo navegador.
 - `sprite_path` fica nulo até o sprite estar no TBOTT_web. Os outros dois personagens e os atributos entram quando forem definidos.
 
 ## Como criar uma rota
