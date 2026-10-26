@@ -6,6 +6,10 @@ const server = app.listen(config.port, async () => {
     console.log(`Documentação interativa: http://localhost:${config.port}/api`);
     console.log(`Swagger UI: http://localhost:${config.port}/api-docs`);
 
+    if (config.frontendOrigins.length === 0) {
+        console.warn('[cors] FRONTEND_ORIGINS não configurada: nenhum front-end conseguirá usar a API pelo navegador.');
+    }
+
     const databaseStatus = await testDatabaseConnection();
     if (databaseStatus.connected) {
         console.log('[database] PostgreSQL conectado com sucesso.');

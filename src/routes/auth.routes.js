@@ -1,7 +1,13 @@
 import { registerRoute } from '../docs/catalog.js';
-import { registerUserController } from '../controller/authController.js';
+import {
+  getCurrentUserController,
+  loginController,
+  logoutController,
+  registerUserController
+} from '../controller/authController.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
-// Formato dos erros do cadastro: { error, code, details? }.
+// Formato dos erros das rotas de autenticação: { error, code, details? }.
 const errorSchema = {
   type: 'object',
   properties: {
@@ -9,7 +15,7 @@ const errorSchema = {
     code: { type: 'string', description: 'Código fixo para o front-end tratar cada caso.' },
     details: {
       type: 'array',
-      description: 'Só em INVALID_REGISTER_DATA: uma mensagem por regra violada.',
+      description: 'Só nos erros de validação (INVALID_REGISTER_DATA e INVALID_LOGIN_DATA): uma mensagem por regra violada.',
       items: {
         type: 'object',
         properties: {
@@ -59,13 +65,39 @@ const registerResponseSchema = {
   }
 };
 
+// Resposta do login e do GET /api/auth/me: o mesmo formato de user e profile do cadastro.
+const sessionUserSchema = {
+  type: 'object',
+  properties: {
+    user: registerResponseSchema.properties.user,
+    profile: registerResponseSchema.properties.profile
+  }
+};
+
+const exampleSessionUser = {
+  user: exampleUser,
+  profile: { id: exampleUser.id, username: 'jogador_123' }
+};
+
+const SESSION_AUTH = 'Sessão: cookies tbott_access_token e tbott_refresh_token, gravados pelo login';
+
+const sessionCookiesHeader = {
+  'Set-Cookie': {
+    description: 'tbott_access_token (validade = expires_in do Supabase, 1 hora no padrão) e tbott_refresh_token (30 dias). Os dois com HttpOnly, SameSite=Lax e Path=/api; Secure em produção. O navegador guarda e envia os cookies sozinho, e o JavaScript da página não consegue lê-los. O Swagger não mostra este cabeçalho: confira os cookies nas ferramentas do navegador (F12 > Application > Cookies).',
+    schema: { type: 'string' }
+  }
+};
+
+const originRejected = { error: 'Origem não autorizada para esta operação.', code: 'ORIGIN_NOT_ALLOWED' };
+const rateLimited = { error: 'Muitas tentativas em pouco tempo. Tente novamente mais tarde.', code: 'AUTH_RATE_LIMITED' };
+
 export const registerAuthRoutes = (app) => {
   registerRoute({
     app,
     method: 'POST',
     path: '/api/auth/register',
     category: 'Autenticação',
-    description: 'Cria a conta do jogador no Supabase Auth. O perfil (public.profiles) é criado pelo gatilho do banco na mesma transação, com o mesmo id do usuário. Com "Confirm email" ligado no Supabase, a conta fica pendente até o jogador clicar no link do e-mail. A API nunca devolve tokens: o login fica para outra rota.',
+    description: 'Cria a conta do jogador no Supabase Auth. O perfil (public.profiles) é criado pelo gatilho do banco na mesma transação, com o mesmo id do usuário. Com "Confirm email" ligado no Supabase, a conta fica pendente até o jogador clicar no link do e-mail. O cadastro nunca devolve tokens nem inicia a sessão: para entrar, use POST /api/auth/login.',
     auth: 'Pública',
     requestBody: {
       required: true,
@@ -190,5 +222,174 @@ export const registerAuthRoutes = (app) => {
       )
     },
     handler: registerUserController
+  });
+
+  registerRoute({
+    app,
+    method: 'POST',
+    path: '/api/auth/login',
+    category: 'Autenticação',
+    description: 'Entra com e-mail e senha (Supabase Auth) e inicia a sessão em dois cookies httpOnly: tbott_access_token e tbott_refresh_token. Os tokens nunca aparecem no JSON. O login é só por e-mail. Uma conta com a confirmação de e-mail pendente recebe 403 até o jogador abrir o link enviado no cadastro. No front-end, chame com fetch(..., { credentials: "include" }). No Swagger, os cookies ficam guardados se a página for aberta pelo mesmo endereço da API (http://localhost:8000/api-docs).',
+    auth: 'Pública',
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['email', 'password'],
+            properties: {
+              email: {
+                type: 'string',
+                format: 'email',
+                description: 'E-mail da conta. Espaços nas pontas são removidos e as letras viram minúsculas, como no cadastro.'
+              },
+              password: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 72,
+                description: 'Senha exatamente como foi cadastrada. Nunca aparece em respostas ou logs.'
+              }
+            }
+          },
+          example: {
+            email: 'jogador.teste@example.com',
+            password: 'Senha-Teste-123'
+          }
+        }
+      }
+    },
+    responses: {
+      200: {
+        description: 'Login feito. Os cookies de sessão vêm no cabeçalho Set-Cookie; o corpo traz só o jogador e o perfil.',
+        headers: sessionCookiesHeader,
+        content: {
+          'application/json': {
+            schema: sessionUserSchema,
+            example: exampleSessionUser
+          }
+        }
+      },
+      400: errorResponse(
+        'Dados inválidos (INVALID_LOGIN_DATA, com details por campo), JSON malformado (INVALID_JSON) ou login recusado pelo Supabase por outro motivo (AUTH_LOGIN_FAILED). Nenhum cookie é gravado.',
+        {
+          dadosInvalidos: {
+            error: 'Dados de login inválidos.',
+            code: 'INVALID_LOGIN_DATA',
+            details: [
+              { field: 'email', message: 'E-mail inválido.' },
+              { field: 'password', message: 'Senha é obrigatória.' }
+            ]
+          },
+          jsonMalformado: { error: 'O corpo da requisição não é um JSON válido.', code: 'INVALID_JSON' },
+          loginRecusado: { error: 'Não foi possível entrar no momento.', code: 'AUTH_LOGIN_FAILED' }
+        }
+      ),
+      401: errorResponse(
+        'INVALID_CREDENTIALS: e-mail ou senha incorretos. A resposta é a mesma quando o e-mail não tem conta, para não revelar quem está cadastrado.',
+        { credenciaisInvalidas: { error: 'E-mail ou senha incorretos.', code: 'INVALID_CREDENTIALS' } }
+      ),
+      403: errorResponse(
+        'EMAIL_NOT_CONFIRMED: senha correta, mas o e-mail ainda não foi confirmado (o Supabase só informa isso depois de conferir a senha). ORIGIN_NOT_ALLOWED: requisição feita por um site que não é o TBOTT_web (proteção contra CSRF).',
+        {
+          emailNaoConfirmado: { error: 'Confirme seu e-mail antes de entrar. Use o link enviado no cadastro.', code: 'EMAIL_NOT_CONFIRMED' },
+          origemRecusada: originRejected
+        }
+      ),
+      429: errorResponse('AUTH_RATE_LIMITED: limite de tentativas de login do Supabase atingido.', { limite: rateLimited }),
+      500: errorResponse(
+        'PROFILE_NOT_FOUND: a conta existe no Supabase Auth, mas não tem perfil (erro de configuração do banco); a sessão criada é encerrada e nenhum cookie é gravado. INTERNAL_ERROR: erro inesperado.',
+        {
+          perfilAusente: { error: GENERIC_ERROR, code: 'PROFILE_NOT_FOUND' },
+          inesperado: { error: GENERIC_ERROR, code: 'INTERNAL_ERROR' }
+        }
+      ),
+      503: errorResponse(
+        'Supabase Auth (SUPABASE_UNAVAILABLE) ou banco de dados (PROFILE_QUERY_FAILED) indisponível, ou SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY não configuradas (SUPABASE_CONFIG_MISSING). Nenhum cookie é gravado.',
+        {
+          supabaseIndisponivel: { error: GENERIC_ERROR, code: 'SUPABASE_UNAVAILABLE' },
+          bancoIndisponivel: { error: GENERIC_ERROR, code: 'PROFILE_QUERY_FAILED' }
+        }
+      )
+    },
+    handler: loginController
+  });
+
+  registerRoute({
+    app,
+    method: 'GET',
+    path: '/api/auth/me',
+    category: 'Autenticação',
+    description: 'Jogador logado, para o card de usuário do front-end. Exige a sessão dos cookies; o navegador os envia sozinho (no front-end, use credentials: "include"). A sessão é conferida no Supabase Auth a cada chamada, então um logout vale na hora. Se o access token venceu, a API renova a sessão com o refresh token e devolve cookies novos nesta mesma resposta.',
+    auth: SESSION_AUTH,
+    responses: {
+      200: {
+        description: 'Jogador logado. Se a sessão foi renovada, a resposta também traz Set-Cookie com os tokens novos.',
+        headers: sessionCookiesHeader,
+        content: {
+          'application/json': {
+            schema: sessionUserSchema,
+            example: exampleSessionUser
+          }
+        }
+      },
+      401: errorResponse(
+        'AUTH_SESSION_MISSING: nenhum cookie de sessão; faça login. AUTH_SESSION_EXPIRED: sessão inválida, encerrada (logout) ou que não pôde ser renovada; a resposta apaga os cookies. O front-end pode tratar qualquer 401 como "jogador deslogado".',
+        {
+          semSessao: { error: 'Faça login para continuar.', code: 'AUTH_SESSION_MISSING' },
+          sessaoExpirada: { error: 'Sua sessão expirou. Faça login novamente.', code: 'AUTH_SESSION_EXPIRED' }
+        }
+      ),
+      429: errorResponse('AUTH_RATE_LIMITED: limite de renovações de sessão do Supabase atingido. Os cookies são mantidos.', { limite: rateLimited }),
+      500: errorResponse(
+        'PROFILE_NOT_FOUND: a sessão é válida, mas a conta não tem perfil (erro de configuração do banco). INTERNAL_ERROR: erro inesperado.',
+        { perfilAusente: { error: GENERIC_ERROR, code: 'PROFILE_NOT_FOUND' } }
+      ),
+      503: errorResponse(
+        'Supabase Auth (SUPABASE_UNAVAILABLE) ou banco de dados (PROFILE_QUERY_FAILED) indisponível. Os cookies são mantidos, porque a sessão pode continuar válida.',
+        {
+          supabaseIndisponivel: { error: GENERIC_ERROR, code: 'SUPABASE_UNAVAILABLE' },
+          bancoIndisponivel: { error: GENERIC_ERROR, code: 'PROFILE_QUERY_FAILED' }
+        }
+      )
+    },
+    middlewares: [requireAuth],
+    handler: getCurrentUserController
+  });
+
+  registerRoute({
+    app,
+    method: 'POST',
+    path: '/api/auth/logout',
+    category: 'Autenticação',
+    description: 'Encerra no Supabase a sessão dos cookies (scope "local": os outros aparelhos do jogador continuam logados) e apaga os cookies. Se o access token já venceu, a API usa o refresh token só para conseguir encerrar a sessão. Responde 200 também sem cookies ou com a sessão já vencida, para o front-end sempre poder tratar o jogador como deslogado. Não precisa de corpo.',
+    auth: 'Pública (encerra a sessão dos cookies, se houver)',
+    responses: {
+      200: {
+        description: 'Sessão encerrada e cookies apagados (Set-Cookie vazio, com validade no passado). Se o Supabase estiver fora do ar, os cookies são apagados mesmo assim e a falha fica só no log.',
+        headers: {
+          'Set-Cookie': {
+            description: 'tbott_access_token e tbott_refresh_token vazios, com Expires no passado e o mesmo Path=/api: o navegador os apaga.',
+            schema: { type: 'string' }
+          }
+        },
+        content: {
+          'application/json': {
+            schema: { type: 'object', properties: { status: { type: 'string', enum: ['logged_out'] } } },
+            example: { status: 'logged_out' }
+          }
+        }
+      },
+      403: errorResponse(
+        'ORIGIN_NOT_ALLOWED: requisição feita por um site que não é o TBOTT_web (proteção contra CSRF). Nada é alterado.',
+        { origemRecusada: originRejected }
+      ),
+      500: errorResponse('INTERNAL_ERROR: erro inesperado. Os cookies são apagados mesmo assim.', { inesperado: { error: GENERIC_ERROR, code: 'INTERNAL_ERROR' } }),
+      503: errorResponse(
+        'SUPABASE_CONFIG_MISSING: SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY não configuradas. Os cookies são apagados mesmo assim.',
+        { configuracaoAusente: { error: GENERIC_ERROR, code: 'SUPABASE_CONFIG_MISSING' } }
+      )
+    },
+    handler: logoutController
   });
 };
