@@ -5,7 +5,7 @@ import { describe, test } from 'node:test';
 import { inspect } from 'node:util';
 import WebSocket from 'ws';
 
-import { getSupabaseClient } from '../src/config/supabase.js';
+import { createSupabaseClient } from '../src/config/supabase.js';
 import { registerUser, registerUserSchema } from '../src/service/authService.js';
 import { AppError } from '../src/utils/httpError.js';
 
@@ -154,7 +154,7 @@ describe('validação do cadastro', () => {
 
 describe('cliente do Supabase', () => {
   test('usa o transporte ws (necessário no Node.js 20, que não tem WebSocket nativo)', () => {
-    assert.equal(getSupabaseClient().realtime.transport, WebSocket);
+    assert.equal(createSupabaseClient().realtime.transport, WebSocket);
   });
 });
 

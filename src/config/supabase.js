@@ -5,8 +5,6 @@ import WebSocket from 'ws';
 
 import { AppError } from '../utils/httpError.js';
 
-let supabaseClient = null;
-
 export const getSupabaseAuthConfig = () => {
   const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
   const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
@@ -25,18 +23,17 @@ export const getSupabaseAuthConfig = () => {
   };
 };
 
-export const getSupabaseClient = () => {
-  if (supabaseClient) {
-    return supabaseClient;
-  }
-
+// Cria um cliente NOVO a cada chamada: cada requisição usa o seu e o descarta no fim.
+// O cliente do Supabase guarda dentro dele a sessão do último login, cadastro ou renovação,
+// e junta renovações simultâneas numa só sem olhar de quem é o token. Um cliente único para
+// a API inteira poderia entregar a sessão de um jogador a outro.
+export const createSupabaseClient = () => {
   const { supabaseUrl, supabaseKey } = getSupabaseAuthConfig();
 
   try {
-    console.info('[auth:register] stage=supabase_client_init');
-
-    supabaseClient = createClient(supabaseUrl, supabaseKey, {
+    return createClient(supabaseUrl, supabaseKey, {
       auth: {
+        // A sessão fica nos cookies do navegador, nunca guardada no servidor.
         persistSession: false,
         autoRefreshToken: false,
         detectSessionInUrl: false
@@ -46,7 +43,7 @@ export const getSupabaseClient = () => {
       }
     });
   } catch (error) {
-    console.error('[auth:register] stage=supabase_client_init_error', {
+    console.error('[auth] stage=supabase_client_init_error', {
       message: error instanceof Error ? error.message : String(error)
     });
 
@@ -56,6 +53,4 @@ export const getSupabaseClient = () => {
       message: 'Não foi possível inicializar o cliente do Supabase.'
     });
   }
-
-  return supabaseClient;
 };

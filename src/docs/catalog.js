@@ -69,6 +69,8 @@ export const registerRoute = ({
   app,
   router,
   handler,
+  // Executados antes do handler, na ordem. Ex.: [requireAuth] para exigir login.
+  middlewares = [],
   prefix = '',
   requestBody,
   kind = 'business'
@@ -89,7 +91,7 @@ export const registerRoute = ({
       });
     });
 
-    target[methodName.toLowerCase()](routePath, routeHandler);
+    target[methodName.toLowerCase()](routePath, ...middlewares, routeHandler);
   }
 
   const route = {

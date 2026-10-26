@@ -3,7 +3,7 @@ import { AppError } from '../utils/httpError.js';
 
 const reportProfileQueryError = (stage, error) => {
   const code = error?.code ?? 'PROFILE_QUERY_ERROR';
-  console.error(`[auth:register] stage=${stage} errorCode=${code}`);
+  console.error(`[auth] stage=${stage} errorCode=${code}`);
 };
 
 export const findProfileByUsername = async (username, db = getDatabasePool()) => {
@@ -34,8 +34,9 @@ export const findProfileByUsername = async (username, db = getDatabasePool()) =>
   }
 };
 
+// Usado no cadastro, no login e no GET /api/auth/me.
 export const findProfileById = async (userId, db = getDatabasePool()) => {
-  console.info('[auth:register] stage=profile_lookup_after_signup');
+  console.info('[auth] stage=profile_lookup');
 
   if (!db) {
     throw new AppError({
@@ -53,11 +54,11 @@ export const findProfileById = async (userId, db = getDatabasePool()) => {
 
     return result.rows[0] ?? null;
   } catch (error) {
-    reportProfileQueryError('profile_lookup_after_signup', error);
+    reportProfileQueryError('profile_lookup', error);
     throw new AppError({
       statusCode: 503,
       code: 'PROFILE_QUERY_FAILED',
-      message: 'Não foi possível confirmar o perfil do usuário no momento.'
+      message: 'Não foi possível carregar o perfil do usuário no momento.'
     });
   }
 };
