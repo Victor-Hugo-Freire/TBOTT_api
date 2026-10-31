@@ -312,13 +312,12 @@ describe('erros HTTP e tratador global', () => {
     assert.deepEqual(body, { error: 'Requisição inválida.', code: 'INVALID_REQUEST' });
   });
 
-  test('outras rotas mantêm o próprio formato de erro (ranking)', async () => {
-    const response = await fetch(`${baseUrl}/api/ranking?limit=0`);
+  test('outras rotas mantêm o próprio formato de erro (personagens)', async () => {
+    const response = await fetch(`${baseUrl}/api/characters`);
     const body = await response.json();
 
-    assert.equal(response.status, 400);
-    assert.equal(body.error, 'Parâmetros de consulta inválidos.');
-    assert.ok(Array.isArray(body.details));
+    assert.equal(response.status, 503);
+    assert.equal(body.error, 'Não foi possível consultar os personagens no momento.');
     assert.equal(body.code, undefined);
   });
 

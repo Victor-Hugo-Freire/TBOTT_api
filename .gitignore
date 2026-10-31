@@ -42,3 +42,4 @@ docker/data/*
 
 docker.env
 yarn.lock
+.omc

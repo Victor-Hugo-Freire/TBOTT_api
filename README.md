@@ -75,11 +75,14 @@ A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam
 | `GET /api/auth/me`                       | Jogador logado (card de usuário do front-end)               | Sim         |
 | `POST /api/auth/logout`                  | Encerra a sessão atual e apaga os cookies                   | Não         |
 | `GET /api/characters`                    | Personagens ordenados por `display_order`                   | Não         |
-| `GET /api/ranking?limit=50&offset=0`     | Melhor vitória de cada jogador, do menor para o maior tempo | Não         |
+| `GET /api/ranking?limit=50&offset=0`     | Melhor vitória de cada jogador, do menor para o maior tempo | Sim         |
+| `POST /api/runs`                         | Registra o resultado de uma partida do jogador logado       | Sim         |
 | `GET /health` e `GET /api/system/status` | Situação da API e do banco                                  | Não         |
 | `/api` e `/api-docs`                     | Documentação e Swagger                                      | Não         |
 
 No ranking, `limit` vai de 1 a 100 e `offset` começa em 0. O tempo vem em milissegundos (`durationMs`). Desempate: quem terminou primeiro. Parâmetros inválidos retornam 400, e banco indisponível retorna 503.
+
+`POST /api/runs` recebe `{ "characterId": "tung-tung-sahur", "durationMs": 650000, "status": "victory" }` (`status`: `victory` ou `defeat`; tempo de 1 ms a 24 h). O jogador é sempre o da sessão: um `userId` no corpo é ignorado. Só `victory` entra no ranking. Responde `201 { run }`; erros: 400 (`INVALID_RUN_DATA`), 401, 403, 422 (`CHARACTER_NOT_FOUND`) e 503.
 
 ## Cadastro de jogador
 
@@ -196,7 +199,7 @@ registerRoute({
 });
 ```
 
-Rotas públicas, como o ranking e os personagens, continuam sem o middleware.
+Rotas públicas, como os personagens, continuam sem o middleware. O ranking também exige login: sem sessão, a resposta é `401 AUTH_SESSION_MISSING`.
 
 ### Limitações conhecidas
 
@@ -216,7 +219,7 @@ Com a API rodando, em outro terminal:
 
 ```powershell
 Invoke-RestMethod http://localhost:8000/api/characters | ConvertTo-Json -Depth 5
-Invoke-RestMethod "http://localhost:8000/api/ranking?limit=10" | ConvertTo-Json -Depth 5
+# O ranking exige login: teste pelo Swagger (faça o login antes) ou pelo front-end.
 ```
 
 `npm test` usa um PostgreSQL em memória (PGlite) e um Supabase Auth simulado. Não precisa de credenciais e não toca no banco nem no Supabase reais: os testes de autenticação ignoram o `.env` e usam endereços falsos. Nos testes de login e sessão, o Auth simulado roda na rede local (`tests/helpers/fakeAuthServer.js`) e a API usa o cliente `supabase-js` de verdade contra ele. Os testes cobrem migrações, seed, RLS, a proteção de `schema_migrations`, o ranking, o cadastro (validação, erros HTTP, e-mail repetido e disputa pelo mesmo nome) e a sessão (login, cookies, renovação, logout, requisições simultâneas, CORS e CSRF).
@@ -232,7 +235,6 @@ select tablename, rowsecurity from pg_tables where schemaname = 'public';
 
 ## Pendências
 
-- A rota que registra partidas pertence à issue #9 e deve usar o `requireAuth`.
 - TBOTT_web: acrescentar `credentials: 'include'` ao `fetch` de `src/services/api.js` e criar a tela de login e o card de usuário.
 - Cadastro: reenviar o e-mail de confirmação e trocar o nome de usuário (útil quando o banco grava um nome provisório).
 - `sprite_path` fica nulo até o sprite estar no TBOTT_web. Os outros dois personagens e os atributos entram quando forem definidos.

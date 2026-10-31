@@ -1,5 +1,6 @@
 import { registerRoute } from '../docs/catalog.js';
 import { listRankingController } from '../controller/rankingController.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 import { RANKING_DEFAULT_LIMIT, RANKING_MAX_LIMIT } from '../service/rankingService.js';
 
 export const registerRankingRoutes = (app) => {
@@ -8,8 +9,8 @@ export const registerRankingRoutes = (app) => {
     method: 'GET',
     path: '/api/ranking',
     category: 'Ranking',
-    description: 'Ranking público: melhor tempo de cada jogador em runs vencidas, do menor para o maior. Duração em milissegundos.',
-    auth: 'Pública',
+    description: 'Ranking (exige login): melhor tempo de cada jogador em runs vencidas, do menor para o maior. Duração em milissegundos.',
+    auth: 'Sessão: cookies tbott_access_token e tbott_refresh_token, gravados pelo login',
     parameters: [
       {
         name: 'limit',
@@ -29,8 +30,10 @@ export const registerRankingRoutes = (app) => {
     responses: {
       200: { description: 'Ranking ordenado pelo menor tempo.' },
       400: { description: 'Parâmetros limit/offset inválidos.' },
+      401: { description: 'AUTH_SESSION_MISSING (sem sessão) ou AUTH_SESSION_EXPIRED (sessão inválida ou encerrada): faça login.' },
       503: { description: 'Banco de dados indisponível.' }
     },
+    middlewares: [requireAuth],
     handler: listRankingController
   });
 };
