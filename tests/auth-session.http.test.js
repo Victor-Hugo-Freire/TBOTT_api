@@ -654,19 +654,26 @@ describe('documentação', () => {
     assert.doesNotMatch(JSON.stringify(loginDoc.responses[200].content), /access_token|refresh_token/);
   });
 
-  test('o catálogo /api/routes mostra que /api/auth/me exige sessão e que o ranking continua público', async () => {
+  test('o catálogo /api/routes mostra que /api/auth/me exige sessão e que o ranking também exige', async () => {
     const { routes } = await (await fetch(`${baseUrl}/api/routes`)).json();
     const authOf = (path) => routes.find((route) => route.path === path).auth;
 
     assert.match(authOf('/api/auth/me'), /Sessão/);
-    assert.equal(authOf('/api/ranking'), 'Pública');
+    assert.match(authOf('/api/ranking'), /Sessão/);
     assert.equal(authOf('/api/characters'), 'Pública');
   });
 
   test('rotas públicas continuam sem exigir login', async () => {
-    const response = await call('GET', '/api/ranking?limit=0', { origin: FRONTEND });
+    const response = await call('GET', '/api/characters', { origin: FRONTEND });
 
-    // 400 da validação do ranking (e não 401): a rota não passa pelo requireAuth.
-    assert.equal(response.status, 400);
+    // 503 (banco real indisponível nos testes) e não 401: a rota não passa pelo requireAuth.
+    assert.notEqual(response.status, 401);
+  });
+
+  test('o ranking exige login: sem sessão, 401 AUTH_SESSION_MISSING', async () => {
+    const response = await call('GET', '/api/ranking', { origin: FRONTEND });
+
+    assert.equal(response.status, 401);
+    assert.equal(response.body.code, 'AUTH_SESSION_MISSING');
   });
 });

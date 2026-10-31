@@ -10,6 +10,7 @@ import { checkOrigin } from './middleware/checkOrigin.js';
 import { registerAuthRoutes } from './routes/auth.routes.js';
 import { registerCharacterRoutes } from './routes/character.routes.js';
 import { registerRankingRoutes } from './routes/ranking.routes.js';
+import { registerRunRoutes } from './routes/run.routes.js';
 import { registerSystemRoutes } from './routes/system.routes.js';
 import { AppError } from './utils/httpError.js';
 
@@ -28,6 +29,7 @@ registerSystemRoutes(app);
 registerAuthRoutes(app);
 registerCharacterRoutes(app);
 registerRankingRoutes(app);
+registerRunRoutes(app);
 
 const GENERIC_ERROR_MESSAGE = 'Não foi possível concluir a operação no momento.';
 
