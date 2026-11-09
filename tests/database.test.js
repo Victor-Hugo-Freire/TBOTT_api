@@ -357,16 +357,16 @@ describe('proteção de schema_migrations em um banco já existente', () => {
     await oldPglite.close();
   });
 
-  test('aplica só a 0004, preserva o histórico e remove os privilégios', async () => {
+  test('aplica as migrações pendentes, preserva o histórico e remove os privilégios', async () => {
     const historyBefore = await oldDb.query('select version, applied_at from public.schema_migrations order by version', []);
     assert.ok(await countNonOwnerPrivileges(oldDb) > 0);
 
     const applied = await applyMigrations(oldDb);
 
     const historyAfter = await oldDb.query('select version, applied_at from public.schema_migrations order by version', []);
-    assert.deepEqual(applied, ['0004_protect_schema_migrations']);
+    assert.deepEqual(applied, ['0004_protect_schema_migrations', '0005_create_player_progress']);
     assert.deepEqual(historyAfter.rows.slice(0, 3), historyBefore.rows);
-    assert.equal(historyAfter.rows.length, 4);
+    assert.equal(historyAfter.rows.length, 5);
     assert.equal(await countNonOwnerPrivileges(oldDb), 0);
   });
 
