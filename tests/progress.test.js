@@ -6,6 +6,7 @@ import {
   hasProgressByUserId,
   upsertProgress
 } from '../src/repository/progressRepository.js';
+import { insertRun } from '../src/repository/runRepository.js';
 import {
   createProgressSchema,
   getProgress,
@@ -14,24 +15,27 @@ import {
 } from '../src/service/progressService.js';
 import { createAuthUser, createTestDatabase } from './helpers/testDatabase.js';
 
+let pglite;
 let db;
 let userA;
 let userB;
 
 const validProgress = {
-  currentRoom: 'room-01',
-  stats: { hp: 3, keys: 2 },
-  flags: ['tutorial_done']
+  andar: 1,
+  sala: 'inicial',
+  graos: 4,
+  garfos: 2,
+  itens: ['cafe-duplo']
 };
 
 before(async () => {
-  ({ db } = await createTestDatabase());
+  ({ pglite, db } = await createTestDatabase());
   userA = await createAuthUser(db, { email: 'progress.a@example.com', username: 'ProgressA' });
   userB = await createAuthUser(db, { email: 'progress.b@example.com', username: 'ProgressB' });
 });
 
 after(async () => {
-  await db.query('select 1');
+  await pglite.close();
 });
 
 describe('validação do payload de progresso', () => {
@@ -126,5 +130,28 @@ describe('isolamento entre usuários', () => {
 
     assert.deepEqual(rowA.payload, { currentRoom: 'secret-room' });
     assert.equal(rowB, null);
+  });
+});
+
+describe('fim da run', () => {
+  test('registrar a run apaga só o progresso do jogador (o Continue desliga)', async () => {
+    await upsertProgress({ userId: userA, payload: validProgress }, db);
+    await upsertProgress({ userId: userB, payload: validProgress }, db);
+
+    await insertRun({ userId: userA, characterId: 'tung-tung-sahur', status: 'defeat', durationMs: 1000 }, db);
+
+    assert.equal(await hasProgress(userA, db), false);
+    assert.equal(await hasProgress(userB, db), true);
+  });
+
+  test('se a run não for gravada, o progresso continua salvo', async () => {
+    await upsertProgress({ userId: userA, payload: validProgress }, db);
+
+    await assert.rejects(
+      insertRun({ userId: userA, characterId: 'nao-existe', status: 'victory', durationMs: 1000 }, db),
+      { code: 'CHARACTER_NOT_FOUND' }
+    );
+
+    assert.equal(await hasProgress(userA, db), true);
   });
 });

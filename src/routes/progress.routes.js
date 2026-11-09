@@ -19,13 +19,24 @@ const errorResponse = (description, example) => ({
   content: { 'application/json': { schema: errorSchema, example } }
 });
 
+// Só um exemplo: o formato do progresso é decidido pelo jogo (TBOTT_web).
+const progressExample = {
+  characterId: 'tung-tung-sahur',
+  andar: 1,
+  sala: 'inicial',
+  vida: 3,
+  graos: 4,
+  garfos: 1,
+  itens: ['cafe-duplo']
+};
+
 export const registerProgressRoutes = (app) => {
   registerRoute({
     app,
     method: 'PUT',
     path: '/api/progress',
     category: 'Progresso',
-    description: 'Salva ou substitui o progresso do jogador autenticado. O conteúdo é genérico e não impõe campos de gameplay fixos; o campo userId do cliente é ignorado.',
+    description: 'Salva ou substitui o progresso do jogador autenticado. Começar outra run substitui o progresso anterior; registrar o fim da run (POST /api/runs) o apaga. O conteúdo é livre e o campo userId do cliente é ignorado.',
     auth: 'Sessão: cookies tbott_access_token e tbott_refresh_token, gravados pelo login',
     requestBody: {
       required: true,
@@ -33,13 +44,9 @@ export const registerProgressRoutes = (app) => {
         'application/json': {
           schema: {
             type: 'object',
-            description: 'Objeto JSON genérico com o estado salvo do jogador. Ex.: níveis, itens, salas, inventário, flags etc. O valor precisa ser um objeto, não uma string, array ou número.'
+            description: 'Objeto JSON com o estado da run (ex.: personagem, andar, sala, vida, grãos, garfos e itens). Precisa ser um objeto, não uma lista, texto ou número.'
           },
-          example: {
-            currentRoom: 'room-01',
-            stats: { hp: 3, keys: 2 },
-            flags: ['tutorial_done']
-          }
+          example: progressExample
         }
       }
     },
@@ -50,16 +57,12 @@ export const registerProgressRoutes = (app) => {
           'application/json': {
             example: {
               exists: true,
-              progress: {
-                currentRoom: 'room-01',
-                stats: { hp: 3, keys: 2 },
-                flags: ['tutorial_done']
-              }
+              progress: progressExample
             }
           }
         }
       },
-      400: errorResponse('INVALID_PROGRESS_DATA: payload ausente ou inválido; qualquer campo userId vindos do front é ignorado.', {
+      400: errorResponse('INVALID_PROGRESS_DATA (o corpo é uma lista ou está vazio) ou INVALID_JSON (JSON malformado, texto, número ou null).', {
         error: 'Dados de progresso inválidos.',
         code: 'INVALID_PROGRESS_DATA',
         details: [{ field: 'request', message: 'Progresso deve ser um objeto JSON válido.' }]
@@ -97,7 +100,7 @@ export const registerProgressRoutes = (app) => {
               salvo: {
                 value: {
                   exists: true,
-                  progress: { currentRoom: 'room-01' }
+                  progress: progressExample
                 }
               },
               ausente: {
@@ -113,10 +116,6 @@ export const registerProgressRoutes = (app) => {
       401: errorResponse('AUTH_SESSION_MISSING ou AUTH_SESSION_EXPIRED: faça login.', {
         error: 'Faça login para continuar.',
         code: 'AUTH_SESSION_MISSING'
-      }),
-      403: errorResponse('ORIGIN_NOT_ALLOWED: requisição de um site que não é o TBOTT_web (proteção contra CSRF).', {
-        error: 'Origem não autorizada para esta operação.',
-        code: 'ORIGIN_NOT_ALLOWED'
       }),
       503: errorResponse('PROGRESS_QUERY_FAILED ou banco indisponível.', {
         error: 'Não foi possível concluir a operação no momento.',
@@ -146,10 +145,6 @@ export const registerProgressRoutes = (app) => {
       401: errorResponse('AUTH_SESSION_MISSING ou AUTH_SESSION_EXPIRED: faça login.', {
         error: 'Faça login para continuar.',
         code: 'AUTH_SESSION_MISSING'
-      }),
-      403: errorResponse('ORIGIN_NOT_ALLOWED: requisição de um site que não é o TBOTT_web (proteção contra CSRF).', {
-        error: 'Origem não autorizada para esta operação.',
-        code: 'ORIGIN_NOT_ALLOWED'
       }),
       503: errorResponse('PROGRESS_QUERY_FAILED ou banco indisponível.', {
         error: 'Não foi possível concluir a operação no momento.',

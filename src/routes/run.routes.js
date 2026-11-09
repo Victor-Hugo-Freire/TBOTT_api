@@ -26,7 +26,7 @@ export const registerRunRoutes = (app) => {
     method: 'POST',
     path: '/api/runs',
     category: 'Partidas',
-    description: 'Registra o resultado de uma partida encerrada do jogador logado. O jogador é o da sessão (cookies): a API ignora qualquer id enviado no corpo. Só runs com status "victory" (todas as fases completas, vivo) entram no ranking; o ranking mostra o menor tempo de cada jogador.',
+    description: 'Registra o resultado de uma partida encerrada do jogador logado. O jogador é o da sessão (cookies): a API ignora qualquer id enviado no corpo. Só runs com status "victory" (todas as fases completas, vivo) entram no ranking; o ranking mostra o menor tempo de cada jogador. Também apaga o progresso salvo (o "Continue" do menu desliga).',
     auth: 'Sessão: cookies tbott_access_token e tbott_refresh_token, gravados pelo login',
     requestBody: {
       required: true,

@@ -216,10 +216,11 @@ describe('segurança (RLS e privilégios pela Data API)', () => {
     assert.equal(rows.length, 1);
   });
 
-  test('visitante sem login não lê perfis nem runs', async () => {
+  test('visitante sem login não lê perfis, runs nem progresso', async () => {
     await runAsAnon(db, async () => {
       await assert.rejects(db.query('select * from public.profiles', []), hasCode(INSUFFICIENT_PRIVILEGE));
       await assert.rejects(db.query('select * from public.game_runs', []), hasCode(INSUFFICIENT_PRIVILEGE));
+      await assert.rejects(db.query('select * from public.player_progress', []), hasCode(INSUFFICIENT_PRIVILEGE));
     });
   });
 
@@ -267,6 +268,20 @@ describe('segurança (RLS e privilégios pela Data API)', () => {
       );
       await assert.rejects(
         db.query('update public.game_runs set duration_ms = 1 where user_id = $1', [playerB]),
+        hasCode(INSUFFICIENT_PRIVILEGE)
+      );
+    });
+  });
+
+  test('jogador só lê o próprio progresso e não o grava diretamente (só pela API)', async () => {
+    await db.query("insert into public.player_progress (user_id, payload) values ($1, '{}'), ($2, '{}')", [playerA, playerB]);
+
+    await runAsUser(db, playerA, async () => {
+      const rows = await db.query('select user_id from public.player_progress', []);
+      assert.deepEqual(rows.rows.map((row) => row.user_id), [playerA]);
+
+      await assert.rejects(
+        db.query("update public.player_progress set payload = '{}' where user_id = $1", [playerA]),
         hasCode(INSUFFICIENT_PRIVILEGE)
       );
     });
