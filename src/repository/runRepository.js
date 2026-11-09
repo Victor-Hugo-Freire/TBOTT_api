@@ -3,6 +3,8 @@ import { AppError } from '../utils/httpError.js';
 
 // Grava uma run já encerrada. O jogo envia só o tempo total; o início é calculado para a run
 // respeitar a regra do banco (finished_at >= started_at).
+// A run acabou (vitória ou derrota), então o progresso salvo é apagado no mesmo comando e o
+// "Continue" do menu desliga. Se o insert falhar, o delete é desfeito junto.
 export const insertRun = async ({ userId, characterId, status, durationMs }, db = getDatabasePool()) => {
   if (!db) {
     throw new AppError({
@@ -14,7 +16,10 @@ export const insertRun = async ({ userId, characterId, status, durationMs }, db 
 
   try {
     const result = await db.query(
-      `insert into public.game_runs (user_id, character_id, status, duration_ms, started_at, finished_at)
+      `with progresso_apagado as (
+         delete from public.player_progress where user_id = $1
+       )
+       insert into public.game_runs (user_id, character_id, status, duration_ms, started_at, finished_at)
        values ($1, $2, $3, $4::int, now() - ($4::int * interval '1 millisecond'), now())
        returning id, character_id, status, duration_ms, finished_at`,
       [userId, characterId, status, durationMs]

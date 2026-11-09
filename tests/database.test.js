@@ -216,10 +216,11 @@ describe('segurança (RLS e privilégios pela Data API)', () => {
     assert.equal(rows.length, 1);
   });
 
-  test('visitante sem login não lê perfis nem runs', async () => {
+  test('visitante sem login não lê perfis, runs nem progresso', async () => {
     await runAsAnon(db, async () => {
       await assert.rejects(db.query('select * from public.profiles', []), hasCode(INSUFFICIENT_PRIVILEGE));
       await assert.rejects(db.query('select * from public.game_runs', []), hasCode(INSUFFICIENT_PRIVILEGE));
+      await assert.rejects(db.query('select * from public.player_progress', []), hasCode(INSUFFICIENT_PRIVILEGE));
     });
   });
 
@@ -267,6 +268,20 @@ describe('segurança (RLS e privilégios pela Data API)', () => {
       );
       await assert.rejects(
         db.query('update public.game_runs set duration_ms = 1 where user_id = $1', [playerB]),
+        hasCode(INSUFFICIENT_PRIVILEGE)
+      );
+    });
+  });
+
+  test('jogador só lê o próprio progresso e não o grava diretamente (só pela API)', async () => {
+    await db.query("insert into public.player_progress (user_id, payload) values ($1, '{}'), ($2, '{}')", [playerA, playerB]);
+
+    await runAsUser(db, playerA, async () => {
+      const rows = await db.query('select user_id from public.player_progress', []);
+      assert.deepEqual(rows.rows.map((row) => row.user_id), [playerA]);
+
+      await assert.rejects(
+        db.query("update public.player_progress set payload = '{}' where user_id = $1", [playerA]),
         hasCode(INSUFFICIENT_PRIVILEGE)
       );
     });
@@ -357,16 +372,16 @@ describe('proteção de schema_migrations em um banco já existente', () => {
     await oldPglite.close();
   });
 
-  test('aplica só a 0004, preserva o histórico e remove os privilégios', async () => {
+  test('aplica as migrações pendentes, preserva o histórico e remove os privilégios', async () => {
     const historyBefore = await oldDb.query('select version, applied_at from public.schema_migrations order by version', []);
     assert.ok(await countNonOwnerPrivileges(oldDb) > 0);
 
     const applied = await applyMigrations(oldDb);
 
     const historyAfter = await oldDb.query('select version, applied_at from public.schema_migrations order by version', []);
-    assert.deepEqual(applied, ['0004_protect_schema_migrations']);
+    assert.deepEqual(applied, ['0004_protect_schema_migrations', '0005_create_player_progress']);
     assert.deepEqual(historyAfter.rows.slice(0, 3), historyBefore.rows);
-    assert.equal(historyAfter.rows.length, 4);
+    assert.equal(historyAfter.rows.length, 5);
     assert.equal(await countNonOwnerPrivileges(oldDb), 0);
   });
 

@@ -9,6 +9,7 @@ import { createSwaggerSpec } from './docs/catalog.js';
 import { checkOrigin } from './middleware/checkOrigin.js';
 import { registerAuthRoutes } from './routes/auth.routes.js';
 import { registerCharacterRoutes } from './routes/character.routes.js';
+import { registerProgressRoutes } from './routes/progress.routes.js';
 import { registerRankingRoutes } from './routes/ranking.routes.js';
 import { registerRunRoutes } from './routes/run.routes.js';
 import { registerSystemRoutes } from './routes/system.routes.js';
@@ -28,6 +29,7 @@ app.use('/docs', express.static(docsDir));
 registerSystemRoutes(app);
 registerAuthRoutes(app);
 registerCharacterRoutes(app);
+registerProgressRoutes(app);
 registerRankingRoutes(app);
 registerRunRoutes(app);
 

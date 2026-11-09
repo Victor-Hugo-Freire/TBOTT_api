@@ -54,13 +54,14 @@ Os dois comandos podem ser executados de novo com segurança. Para mudar o banco
 | `profiles`          | Perfil do jogador ligado a `auth.users`. O `username` é único sem diferenciar maiúsculas, e o perfil é criado por um gatilho no cadastro. |
 | `characters`        | Catálogo fixo: `id` estável, nome, descrição, `sprite_path` e `display_order`.                                                            |
 | `game_runs`         | Partidas: jogador, personagem, `status` (`in_progress`, `victory` ou `defeat`) e `duration_ms`.                                           |
+| `player_progress`   | Run salva do jogador (botão "Continue"): uma linha por jogador, com o estado do jogo em JSON livre (`payload`).                           |
 | `schema_migrations` | Migrações já aplicadas. Só o dono (`postgres`) tem acesso.                                                                                |
 
 **Segurança.** O RLS está ativo em todas as tabelas:
 
 - o catálogo é público;
 - o jogador lê e altera só os próprios dados;
-- runs só são gravadas pela API.
+- runs e progresso só são gravados pela API.
 
 A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam usar sempre o usuário da sessão e validar os dados recebidos.
 
@@ -77,12 +78,17 @@ A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam
 | `GET /api/characters`                    | Personagens ordenados por `display_order`                   | Não         |
 | `GET /api/ranking?limit=50&offset=0`     | Melhor vitória de cada jogador, do menor para o maior tempo | Sim         |
 | `POST /api/runs`                         | Registra o resultado de uma partida do jogador logado       | Sim         |
+| `PUT /api/progress`                      | Salva a run atual do jogador (substitui a anterior)         | Sim         |
+| `GET /api/progress`                      | Run salva do jogador (`exists` e `progress`)                | Sim         |
+| `GET /api/progress/exists`               | Só informa se há run salva (habilita o "Continue")          | Sim         |
 | `GET /health` e `GET /api/system/status` | Situação da API e do banco                                  | Não         |
 | `/api` e `/api-docs`                     | Documentação e Swagger                                      | Não         |
 
 No ranking, `limit` vai de 1 a 100 e `offset` começa em 0. O tempo vem em milissegundos (`durationMs`). Desempate: quem terminou primeiro. Parâmetros inválidos retornam 400, e banco indisponível retorna 503.
 
-`POST /api/runs` recebe `{ "characterId": "tung-tung-sahur", "durationMs": 650000, "status": "victory" }` (`status`: `victory` ou `defeat`; tempo de 1 ms a 24 h). O jogador é sempre o da sessão: um `userId` no corpo é ignorado. Só `victory` entra no ranking. Responde `201 { run }`; erros: 400 (`INVALID_RUN_DATA`), 401, 403, 422 (`CHARACTER_NOT_FOUND`) e 503.
+`POST /api/runs` recebe `{ "characterId": "tung-tung-sahur", "durationMs": 650000, "status": "victory" }` (`status`: `victory` ou `defeat`; tempo de 1 ms a 24 h). O jogador é sempre o da sessão: um `userId` no corpo é ignorado. Só `victory` entra no ranking. Responde `201 { run }`; erros: 400 (`INVALID_RUN_DATA`), 401, 403, 422 (`CHARACTER_NOT_FOUND`) e 503. Registrar a run também apaga o progresso salvo do jogador, e o "Continue" desliga.
+
+`PUT /api/progress` recebe o estado da run como um objeto JSON livre (ex.: `{ "andar": 1, "sala": "inicial", "graos": 4, "garfos": 1, "itens": ["cafe-duplo"] }`) e responde `200 { exists, progress }`. O jogo chama ao começar uma run (substitui a anterior, depois do aviso na tela) e ao salvar durante a run. O jogador é sempre o da sessão: um `userId` no corpo é ignorado. Erros: 400 (`INVALID_PROGRESS_DATA` ou `INVALID_JSON`), 401, 403 e 503. `GET /api/progress` responde `{ "exists": false, "progress": null }` quando não há run salva.
 
 ## Cadastro de jogador
 

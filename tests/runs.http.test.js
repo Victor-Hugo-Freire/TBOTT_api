@@ -10,7 +10,8 @@ import { insertRun } from '../src/repository/runRepository.js';
 import { startFakeAuthServer } from './helpers/fakeAuthServer.js';
 import { createAuthUser, createTestDatabase } from './helpers/testDatabase.js';
 
-// Testes HTTP de POST /api/runs: app, CSRF, requireAuth, controller, service e repositório reais.
+// Testes HTTP de POST /api/runs e do progresso salvo (/api/progress), que a run apaga ao terminar:
+// app, CSRF, requireAuth, controller, service e repositório reais.
 // O Supabase Auth é o simulado e o banco é o PostgreSQL em memória.
 
 const PASSWORD = 'Senha-Teste-123';
@@ -52,11 +53,23 @@ after(async () => {
 beforeEach(() => {
   app.locals.authContext = { repo: { findProfileById: (id) => findProfileById(id, db) } };
   app.locals.runContext = { repo: { insertRun: (data) => insertRun(data, db) } };
+  app.locals.progressContext = { db };
 });
 
 afterEach(() => {
   delete app.locals.authContext;
   delete app.locals.runContext;
+  delete app.locals.progressContext;
+});
+
+const progressRequest = (method, cookies, payload) => fetch(`${baseUrl}/api/progress`, {
+  method,
+  headers: {
+    'content-type': 'application/json',
+    origin: FRONTEND,
+    ...(cookies ? { cookie: cookies } : {})
+  },
+  ...(payload ? { body: JSON.stringify(payload) } : {})
 });
 
 const postRun = (payload, { cookies, origin = FRONTEND } = {}) => fetch(`${baseUrl}/api/runs`, {
@@ -120,5 +133,34 @@ describe('POST /api/runs', () => {
 
     const saved = await db.query('select user_id from public.game_runs where id = $1', [json.run.id]);
     assert.equal(saved.rows[0].user_id, account.id);
+  });
+});
+
+describe('progresso salvo (/api/progress)', () => {
+  const progress = { andar: 2, sala: 'loja', graos: 4, garfos: 1, itens: ['cafe-duplo'] };
+
+  test('sem sessão: 401 AUTH_SESSION_MISSING', async () => {
+    for (const [method, payload] of [['GET'], ['PUT', progress]]) {
+      const response = await progressRequest(method, null, payload);
+
+      assert.equal(response.status, 401, method);
+      assert.equal((await response.json()).code, 'AUTH_SESSION_MISSING', method);
+    }
+  });
+
+  test('salva com o id da sessão (ignora userId do corpo) e a run encerrada apaga o progresso', async () => {
+    const cookies = await loginCookies();
+
+    const saved = await progressRequest('PUT', cookies, { ...progress, userId: '00000000-0000-0000-0000-000000000000' });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(await saved.json(), { exists: true, progress });
+
+    const row = await db.query('select user_id from public.player_progress', []);
+    assert.deepEqual(row.rows.map((item) => item.user_id), [account.id]);
+
+    assert.deepEqual(await (await progressRequest('GET', cookies)).json(), { exists: true, progress });
+
+    assert.equal((await postRun({ ...body, status: 'defeat' }, { cookies })).status, 201);
+    assert.deepEqual(await (await progressRequest('GET', cookies)).json(), { exists: false, progress: null });
   });
 });
