@@ -92,6 +92,46 @@ describe('migrações e seed', () => {
 
     await db.query("delete from public.characters where id = 'personagem-extra'", []);
   });
+
+  test('rodar o seed várias vezes não duplica itens, inimigos nem chefes', async () => {
+    await runSeeds(db);
+    await runSeeds(db);
+
+    const items = await db.query('select count(*)::int as total from public.items', []);
+    const enemies = await db.query('select count(*)::int as total from public.enemies', []);
+    const bosses = await db.query('select count(*)::int as total from public.bosses', []);
+
+    assert.equal(items.rows[0].total, 12);
+    assert.equal(enemies.rows[0].total, 10);
+    assert.equal(bosses.rows[0].total, 8);
+  });
+
+  test('o seed restaura um número do catálogo alterado à mão (rebalancear é mudar o seed)', async () => {
+    await db.query("update public.enemies set health = 999 where id = 'moka-scudiera'", []);
+    await db.query("update public.items set sprite_path = '/outro.png' where id = 'tiramisu'", []);
+
+    await runSeeds(db);
+
+    const enemy = await db.query("select health from public.enemies where id = 'moka-scudiera'", []);
+    const item = await db.query("select sprite_path from public.items where id = 'tiramisu'", []);
+    assert.equal(enemy.rows[0].health, 12);
+    assert.equal(item.rows[0].sprite_path, '/sprites/items/tiramisu/tiramisu.png');
+  });
+
+  test('o banco rejeita dados fora do formato no catálogo do jogo', async () => {
+    await assert.rejects(
+      db.query("update public.items set rarity = 'lendario' where id = 'tiramisu'", []),
+      hasCode(CHECK_VIOLATION)
+    );
+    await assert.rejects(
+      db.query("update public.enemies set health = 0 where id = 'moka-scudiera'", []),
+      hasCode(CHECK_VIOLATION)
+    );
+    await assert.rejects(
+      db.query("update public.bosses set min_floor = 5, max_floor = 1 where id = 'nonna-lasagnona'", []),
+      hasCode(CHECK_VIOLATION)
+    );
+  });
 });
 
 describe('profiles', () => {
@@ -300,6 +340,38 @@ describe('segurança (RLS e privilégios pela Data API)', () => {
     });
   });
 
+  test('visitante sem login não lê o catálogo do jogo (itens, inimigos e chefes)', async () => {
+    await runAsAnon(db, async () => {
+      await assert.rejects(db.query('select * from public.items', []), hasCode(INSUFFICIENT_PRIVILEGE));
+      await assert.rejects(db.query('select * from public.enemies', []), hasCode(INSUFFICIENT_PRIVILEGE));
+      await assert.rejects(db.query('select * from public.bosses', []), hasCode(INSUFFICIENT_PRIVILEGE));
+    });
+  });
+
+  test('jogador logado lê o catálogo do jogo, mas não o altera', async () => {
+    await runAsUser(db, playerA, async () => {
+      const items = await db.query('select id from public.items', []);
+      const enemies = await db.query('select id from public.enemies', []);
+      const bosses = await db.query('select id from public.bosses', []);
+
+      assert.equal(items.rows.length, 12);
+      assert.equal(enemies.rows.length, 10);
+      assert.equal(bosses.rows.length, 8);
+
+      await assert.rejects(
+        db.query("update public.items set price = 1 where id = 'tiramisu'", []),
+        hasCode(INSUFFICIENT_PRIVILEGE)
+      );
+      await assert.rejects(
+        db.query("update public.enemies set health = 1 where id = 'moka-scudiera'", []),
+        hasCode(INSUFFICIENT_PRIVILEGE)
+      );
+      await assert.rejects(
+        db.query("delete from public.bosses where id = 'tralalero-tralala'", []),
+        hasCode(INSUFFICIENT_PRIVILEGE)
+      );
+    });
+  });
 });
 
 describe('proteção de schema_migrations', () => {
@@ -379,9 +451,13 @@ describe('proteção de schema_migrations em um banco já existente', () => {
     const applied = await applyMigrations(oldDb);
 
     const historyAfter = await oldDb.query('select version, applied_at from public.schema_migrations order by version', []);
-    assert.deepEqual(applied, ['0004_protect_schema_migrations', '0005_create_player_progress']);
+    assert.deepEqual(applied, [
+      '0004_protect_schema_migrations',
+      '0005_create_player_progress',
+      '0006_create_game_catalog'
+    ]);
     assert.deepEqual(historyAfter.rows.slice(0, 3), historyBefore.rows);
-    assert.equal(historyAfter.rows.length, 5);
+    assert.equal(historyAfter.rows.length, 6);
     assert.equal(await countNonOwnerPrivileges(oldDb), 0);
   });
 

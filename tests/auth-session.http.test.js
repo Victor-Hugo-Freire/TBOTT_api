@@ -660,6 +660,7 @@ describe('documentação', () => {
 
     assert.match(authOf('/api/auth/me'), /Sessão/);
     assert.match(authOf('/api/ranking'), /Sessão/);
+    assert.match(authOf('/api/catalog'), /Sessão/);
     assert.equal(authOf('/api/characters'), 'Pública');
   });
 
