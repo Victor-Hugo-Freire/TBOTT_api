@@ -1,6 +1,6 @@
 # TBOTT API
 
-Backend do **The Binding of Tung Tung (TBOTT)**, jogo web roguelike inspirado em _The Binding of Isaac_. A API entrega o catálogo de personagens e o ranking, e guarda perfis e partidas. O front-end fica no [TBOTT_web](https://github.com/Victor-Hugo-Freire/TBOTT_web).
+Backend do **The Binding of Tung Tung (TBOTT)**, jogo web roguelike inspirado em _The Binding of Isaac_. A API entrega o catálogo de personagens, o catálogo do jogo (itens, inimigos e chefes) e o ranking, e guarda perfis e partidas. O front-end fica no [TBOTT_web](https://github.com/Victor-Hugo-Freire/TBOTT_web).
 
 O **Supabase** hospeda o PostgreSQL, que a API acessa diretamente com `pg` e `DATABASE_URL`, e cuida da autenticação (cadastro, senha, confirmação de e-mail e sessões). A sessão do jogador fica em cookies `httpOnly`, gravados pela API.
 
@@ -10,7 +10,7 @@ O **Supabase** hospeda o PostgreSQL, que a API acessa diretamente com `pg` e `DA
 
 ```
 db/migrations/   alterações do banco, em ordem (0001, 0002, ...)
-db/seeds/        dados iniciais (personagens)
+db/seeds/        dados iniciais (personagens, itens, inimigos e chefes)
 scripts/         comandos de banco: migração, seed e contas de teste
 src/config/      variáveis de ambiente, conexão com o PostgreSQL e cliente do Supabase
 src/routes/      declaração das rotas
@@ -44,7 +44,7 @@ Para o login pelo navegador, duas variáveis importam (veja [Login, sessão e lo
 
 ```powershell
 npm run db:migrate   # aplica só as migrações pendentes
-npm run db:seed      # cadastra/atualiza os personagens sem duplicar
+npm run db:seed      # cadastra/atualiza personagens, itens, inimigos e chefes sem duplicar
 ```
 
 Os dois comandos podem ser executados de novo com segurança. Para mudar o banco, crie o próximo arquivo numerado em `db/migrations/`. Nunca edite uma migração já aplicada.
@@ -53,19 +53,45 @@ Os dois comandos podem ser executados de novo com segurança. Para mudar o banco
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `profiles`          | Perfil do jogador ligado a `auth.users`. O `username` é único sem diferenciar maiúsculas, e o perfil é criado por um gatilho no cadastro. |
 | `characters`        | Catálogo fixo: `id` estável, nome, descrição, `sprite_path` e `display_order`.                                                            |
+| `items`             | Itens: nome, descrição, `type`, `rarity`, `effect` (JSON com os números), `room_types`, `price` e os caminhos da folha e do ícone.        |
+| `enemies`           | Inimigos: vida, dano, velocidade, `behavior`, `min_floor` e os caminhos das duas camadas do sprite (pernas e tronco).                     |
+| `bosses`            | Chefes: vida, dano de contato, `attacks` (lista em JSON), `min_floor`, `max_floor` e os caminhos das duas camadas do sprite.              |
 | `game_runs`         | Partidas: jogador, personagem, `status` (`in_progress`, `victory` ou `defeat`) e `duration_ms`.                                           |
 | `player_progress`   | Run salva do jogador (botão "Continue"): uma linha por jogador, com o estado do jogo em JSON livre (`payload`).                           |
 | `schema_migrations` | Migrações já aplicadas. Só o dono (`postgres`) tem acesso.                                                                                |
 
 **Segurança.** O RLS está ativo em todas as tabelas:
 
-- o catálogo é público;
+- o catálogo de personagens é público;
+- itens, inimigos e chefes são lidos só por jogador logado, e ninguém os altera;
 - o jogador lê e altera só os próprios dados;
 - runs e progresso só são gravados pela API.
 
 A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam usar sempre o usuário da sessão e validar os dados recebidos.
 
-**Sprites.** O banco guarda só a referência (`sprite_path`). Os arquivos ficaram no TBOTT_web.
+**Sprites.** O banco guarda só o caminho do arquivo, em texto (ex.: `/sprites/enemies/moka-scudiera/moka-scudiera-pernas.png`). Os arquivos e os dados de animação ficam no TBOTT_web, ligados pelo mesmo `id`.
+
+### Catálogo do jogo (itens, inimigos e chefes)
+
+Os dados ficam nos seeds `db/seeds/0002_items.sql`, `0003_enemies.sql` e `0004_bosses.sql`, que são a fonte oficial. O `id` é o mesmo das pastas de sprites do TBOTT_web.
+
+Unidades:
+
+- **vida (`health`):** pontos. O valor de referência deste catálogo é o golpe básico do bastão tirar 3, então vida 9 são 3 golpes. O TBOTT_web ainda não tem dano de golpe;
+- **dano (`damage`):** meios corações, como no TBOTT_web (1 = meio coração, 2 = um coração; o Tung Tung tem 6);
+- **velocidade (`speed`):** unidades da sala por segundo, como no TBOTT_web (o Tung Tung anda a 260).
+
+Como mudar, sempre terminando com `npm run db:seed`:
+
+- **Rebalancear:** troque o número no seed.
+- **Item novo:** acrescente uma linha em `0002_items.sql` (os sprites entram no TBOTT_web).
+- **Trocar uma imagem:** um arquivo novo com o mesmo nome não muda nada aqui; com outro nome ou pasta, troque o caminho no seed.
+- **Comportamento ou tipo de sala novo:** são texto livre, sem migração. O TBOTT_web precisa ter o código correspondente.
+- **Coluna nova:** crie a próxima migração (`alter table ... add column`) e atualize o seed e o `gameCatalogService.js`.
+
+Os testes conferem as quantidades (12 itens, 10 inimigos e 8 chefes) e alguns valores: ao mudar o seed, atualize também `tests/database.test.js` e `tests/game-catalog.http.test.js`.
+
+Os números atuais são a primeira proposta de balanceamento. Garfo e grão de café não estão no banco: são contados no progresso da run.
 
 ## Endpoints
 
@@ -76,6 +102,7 @@ A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam
 | `GET /api/auth/me`                       | Jogador logado (card de usuário do front-end)               | Sim         |
 | `POST /api/auth/logout`                  | Encerra a sessão atual e apaga os cookies                   | Não         |
 | `GET /api/characters`                    | Personagens ordenados por `display_order`                   | Não         |
+| `GET /api/catalog`                       | Itens, inimigos e chefes do jogo, tudo de uma vez           | Sim         |
 | `GET /api/ranking?limit=50&offset=0`     | Melhor vitória de cada jogador, do menor para o maior tempo | Sim         |
 | `POST /api/runs`                         | Registra o resultado de uma partida do jogador logado       | Sim         |
 | `PUT /api/progress`                      | Salva a run atual do jogador (substitui a anterior)         | Sim         |
@@ -85,6 +112,8 @@ A API conecta como `postgres`, que **ignora o RLS**. Por isso, as rotas precisam
 | `/api` e `/api-docs`                     | Documentação e Swagger                                      | Não         |
 
 No ranking, `limit` vai de 1 a 100 e `offset` começa em 0. O tempo vem em milissegundos (`durationMs`). Desempate: quem terminou primeiro. Parâmetros inválidos retornam 400, e banco indisponível retorna 503.
+
+`GET /api/catalog` responde `{ "items": [...], "enemies": [...], "bosses": [...] }`, com os campos em camelCase (`roomTypes`, `minFloor`, `spriteLegsPath`). O jogo chama uma vez no começo da partida, com `credentials: 'include'`, e guarda o resultado na memória. Erros: 401 e 503 (`CATALOG_QUERY_FAILED`). O formato completo, com exemplo, está no Swagger.
 
 `POST /api/runs` recebe `{ "characterId": "tung-tung-sahur", "durationMs": 650000, "status": "victory" }` (`status`: `victory` ou `defeat`; tempo de 1 ms a 24 h). O jogador é sempre o da sessão: um `userId` no corpo é ignorado. Só `victory` entra no ranking. Responde `201 { run }`; erros: 400 (`INVALID_RUN_DATA`), 401, 403, 422 (`CHARACTER_NOT_FOUND`) e 503. Registrar a run também apaga o progresso salvo do jogador, e o "Continue" desliga.
 
@@ -205,7 +234,7 @@ registerRoute({
 });
 ```
 
-Rotas públicas, como os personagens, continuam sem o middleware. O ranking também exige login: sem sessão, a resposta é `401 AUTH_SESSION_MISSING`.
+Rotas públicas, como os personagens, continuam sem o middleware. O ranking e o catálogo do jogo também exigem login: sem sessão, a resposta é `401 AUTH_SESSION_MISSING`.
 
 ### Limitações conhecidas
 
@@ -228,7 +257,7 @@ Invoke-RestMethod http://localhost:8000/api/characters | ConvertTo-Json -Depth 5
 # O ranking exige login: teste pelo Swagger (faça o login antes) ou pelo front-end.
 ```
 
-`npm test` usa um PostgreSQL em memória (PGlite) e um Supabase Auth simulado. Não precisa de credenciais e não toca no banco nem no Supabase reais: os testes de autenticação ignoram o `.env` e usam endereços falsos. Nos testes de login e sessão, o Auth simulado roda na rede local (`tests/helpers/fakeAuthServer.js`) e a API usa o cliente `supabase-js` de verdade contra ele. Os testes cobrem migrações, seed, RLS, a proteção de `schema_migrations`, o ranking, o cadastro (validação, erros HTTP, e-mail repetido e disputa pelo mesmo nome) e a sessão (login, cookies, renovação, logout, requisições simultâneas, CORS e CSRF).
+`npm test` usa um PostgreSQL em memória (PGlite) e um Supabase Auth simulado. Não precisa de credenciais e não toca no banco nem no Supabase reais: os testes de autenticação ignoram o `.env` e usam endereços falsos. Nos testes de login e sessão, o Auth simulado roda na rede local (`tests/helpers/fakeAuthServer.js`) e a API usa o cliente `supabase-js` de verdade contra ele. Os testes cobrem migrações, seed, RLS, a proteção de `schema_migrations`, o ranking, o catálogo do jogo, o cadastro (validação, erros HTTP, e-mail repetido e disputa pelo mesmo nome) e a sessão (login, cookies, renovação, logout, requisições simultâneas, CORS e CSRF).
 
 **Testar o login pelo Swagger:** abra `http://localhost:8000/api-docs` (com `localhost`, o mesmo endereço da API), faça o login e depois chame `GET /api/auth/me`. O navegador guarda e envia os cookies sozinho. O Swagger não mostra o `Set-Cookie`: confira os cookies em F12 → _Application_ → _Cookies_ → `http://localhost:8000`. Para testar a renovação sem esperar 1 hora, apague só o cookie `tbott_access_token` ali e chame `/api/auth/me` de novo: a resposta é `200` e os dois cookies são regravados. O Swagger roda no mesmo endereço da API; o fluxo real do front-end (outra porta, CORS e `credentials: 'include'`) precisa ser conferido também pelo TBOTT_web.
 
@@ -243,7 +272,8 @@ select tablename, rowsecurity from pg_tables where schemaname = 'public';
 
 - TBOTT_web: acrescentar `credentials: 'include'` ao `fetch` de `src/services/api.js` e criar a tela de login e o card de usuário.
 - Cadastro: reenviar o e-mail de confirmação e trocar o nome de usuário (útil quando o banco grava um nome provisório).
-- `sprite_path` fica nulo até o sprite estar no TBOTT_web. Os outros dois personagens e os atributos entram quando forem definidos.
+- `sprite_path` dos personagens fica nulo até o sprite estar no TBOTT_web. Os outros dois personagens e os atributos entram quando forem definidos.
+- TBOTT_web: buscar `GET /api/catalog` no começo da partida e usar 3 como dano do golpe básico (ou mudar a vida no seed). Nenhum inimigo, chefe ou item existe no jogo ainda, então os números do catálogo não foram testados jogando.
 
 ## Como criar uma rota
 
