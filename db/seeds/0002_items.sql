@@ -21,7 +21,8 @@
 -- cada acerto e custa 15 grãos; o frenesi do Dente tem teto (maxAttackSpeedBonus).
 -- Efeitos secundários do efeitos.md, sempre ativos enquanto o jogador tem o item (2026-11-21):
 --   Muçarela maxHealthBonus (+1 coração, que já vem cheio), Batuta invincibilityBonusMs, Elixir speedMultiplier e
---   attackSpeedBonus (golpe de 630 para 567 ms) e Concha attackAreaMultiplier (caixa do golpe maior).
+--   attackSpeedBonus (golpe de 630 para 567 ms) e Concha attackAreaMultiplier (caixa do golpe 30% maior, para a
+--   frente; o efeitos.md dizia 1,15, que quase não aparecia).
 
 insert into public.items (id, name, description, type, rarity, effect, room_types, price, sprite_path, icon_path)
 values
@@ -45,7 +46,7 @@ values
     'concha-longa', 'Concha Longa',
     'O golpe fica maior. O golpe que acerta deixa uma poça de molho nos pés do inimigo, que fica lento dentro dela.',
     'passivo', 'comum',
-    '{"trigger": "golpe-acerta", "puddleDurationMs": 2000, "enemySpeedMultiplier": 0.5, "attackAreaMultiplier": 1.15}',
+    '{"trigger": "golpe-acerta", "puddleDurationMs": 2000, "enemySpeedMultiplier": 0.5, "attackAreaMultiplier": 1.3}',
     '["tesouro"]', null,
     '/sprites/items/concha-longa/concha-longa.png', '/sprites/items/concha-longa/concha-longa-icone.png'
   ),
