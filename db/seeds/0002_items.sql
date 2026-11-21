@@ -19,6 +19,9 @@
 -- (decisões do Victor): Parmesão solta as lascas em todo golpe e elas voam até um inimigo, um obstáculo ou a
 -- parede (sem alcance); a poça da Concha nasce nos pés do inimigo atingido; o Tiramisu acelera golpe e passo a
 -- cada acerto e custa 15 grãos; o frenesi do Dente tem teto (maxAttackSpeedBonus).
+-- Efeitos secundários do efeitos.md, sempre ativos enquanto o jogador tem o item (2026-11-21):
+--   Muçarela maxHealthBonus (+1 coração, que já vem cheio), Batuta invincibilityBonusMs, Elixir speedMultiplier e
+--   attackSpeedBonus (golpe de 630 para 567 ms) e Concha attackAreaMultiplier (caixa do golpe maior).
 
 insert into public.items (id, name, description, type, rarity, effect, room_types, price, sprite_path, icon_path)
 values
@@ -40,9 +43,9 @@ values
   ),
   (
     'concha-longa', 'Concha Longa',
-    'O golpe que acerta deixa uma poça de molho nos pés do inimigo, que fica lento dentro dela.',
+    'O golpe fica maior. O golpe que acerta deixa uma poça de molho nos pés do inimigo, que fica lento dentro dela.',
     'passivo', 'comum',
-    '{"trigger": "golpe-acerta", "puddleDurationMs": 2000, "enemySpeedMultiplier": 0.5}',
+    '{"trigger": "golpe-acerta", "puddleDurationMs": 2000, "enemySpeedMultiplier": 0.5, "attackAreaMultiplier": 1.15}',
     '["tesouro"]', null,
     '/sprites/items/concha-longa/concha-longa.png', '/sprites/items/concha-longa/concha-longa-icone.png'
   ),
@@ -56,9 +59,9 @@ values
   ),
   (
     'mucarela', 'Muçarela',
-    'O golpe que acerta prende o inimigo em fios de queijo.',
+    'Dá mais um coração de vida. O golpe que acerta prende o inimigo em fios de queijo.',
     'passivo', 'incomum',
-    '{"trigger": "golpe-acerta", "stunDurationMs": 800}',
+    '{"trigger": "golpe-acerta", "stunDurationMs": 800, "maxHealthBonus": 2}',
     '["tesouro"]', null,
     '/sprites/items/mucarela/mucarela.png', '/sprites/items/mucarela/mucarela-icone.png'
   ),
@@ -88,9 +91,9 @@ values
   ),
   (
     'batuta-do-maestro', 'Batuta do Maestro',
-    'Golpes no ritmo causam mais dano, e o quarto seguido solta uma onda sonora.',
+    'Golpes no ritmo causam mais dano, e o quarto seguido solta uma onda sonora. Depois de levar dano, fica invencível por mais tempo.',
     'passivo', 'incomum',
-    '{"trigger": "golpe-no-ritmo", "rhythmWindowMs": 150, "extraDamage": 1, "comboHits": 4, "waveRange": 80}',
+    '{"trigger": "golpe-no-ritmo", "rhythmWindowMs": 150, "extraDamage": 1, "comboHits": 4, "waveRange": 80, "invincibilityBonusMs": 200}',
     '["palco"]', null,
     '/sprites/items/batuta-do-maestro/batuta-do-maestro.png', '/sprites/items/batuta-do-maestro/batuta-do-maestro-icone.png'
   ),
@@ -112,9 +115,9 @@ values
   ),
   (
     'elixir-eletrico', 'Elixir Elétrico',
-    'O terceiro golpe seguido que acerta solta um raio que salta para os inimigos próximos.',
+    'Anda e golpeia mais rápido. O terceiro golpe seguido que acerta solta um raio que salta para os inimigos próximos.',
     'passivo', 'raro',
-    '{"trigger": "terceiro-golpe-seguido", "extraDamage": 2, "chainTargets": 2, "chainRange": 120, "chainDamage": 1}',
+    '{"trigger": "terceiro-golpe-seguido", "extraDamage": 2, "chainTargets": 2, "chainRange": 120, "chainDamage": 1, "speedMultiplier": 1.1, "attackSpeedBonus": 0.11}',
     '["adega"]', null,
     '/sprites/items/elixir-eletrico/elixir-eletrico.png', '/sprites/items/elixir-eletrico/elixir-eletrico-icone.png'
   )
