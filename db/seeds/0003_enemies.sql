@@ -13,6 +13,7 @@
 --   min_floor = primeiro andar em que o inimigo pode aparecer.
 -- Os números são a primeira proposta de balanceamento: nenhum inimigo existe no jogo ainda.
 -- O Pinguino tem 3 golpes de vida porque o sprite mostra 3 bolas de sorvete.
+-- O Peperoncino tem 5 de vida (2 golpes), pedido do Victor em 2026-11-21: com 3, morria antes de dar perigo.
 
 insert into public.enemies (id, name, description, health, damage, speed, behavior, min_floor, sprite_legs_path, sprite_body_path)
 values
@@ -82,7 +83,7 @@ values
   (
     'peperoncino-kamikaze', 'Peperoncino Kamikaze',
     'Corre até o jogador, acende, pisca e explode.',
-    3, 2, 230, 'explodir', 4,
+    5, 2, 230, 'explodir', 4,
     '/sprites/enemies/peperoncino-kamikaze/peperoncino-kamikaze-pernas.png',
     '/sprites/enemies/peperoncino-kamikaze/peperoncino-kamikaze-tronco.png'
   )
