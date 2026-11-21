@@ -20,12 +20,12 @@ const catalogExample = {
   items: [{
     id: 'tiramisu',
     name: 'Tiramisu',
-    description: 'Pegar um grão de café deixa o golpe mais rápido por alguns segundos.',
+    description: 'Cada golpe que acerta deixa o golpe e o passo mais rápidos por alguns segundos.',
     type: 'passivo',
     rarity: 'incomum',
-    effect: { trigger: 'pegar-grao', attackSpeedBonus: 0.25, bonusDurationMs: 2000 },
+    effect: { trigger: 'golpe-acerta', attackSpeedBonus: 0.25, moveSpeedMultiplier: 1.2, bonusDurationMs: 2000 },
     roomTypes: ['loja'],
-    price: 4,
+    price: 15,
     spritePath: '/sprites/items/tiramisu/tiramisu.png',
     iconPath: '/sprites/items/tiramisu/tiramisu-icone.png'
   }],

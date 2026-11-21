@@ -15,7 +15,10 @@
 --   - vida do jogador é em meios corações (1 coração = 2);
 --   - distâncias em unidades da sala; tempos em milissegundos;
 --   - multiplicadores e chances são frações (1.4 = 40% a mais; 0.1 = 10%).
--- Os efeitos ainda são proposta de balanceamento: nenhum item existe no jogo.
+-- Os efeitos estão no TBOTT_web (src/utils/itemEffects.js), que lê estes números. Ajustes de 2026-11-21
+-- (decisões do Victor): Parmesão solta as lascas em todo golpe e elas voam até um inimigo, um obstáculo ou a
+-- parede (sem alcance); a poça da Concha nasce nos pés do inimigo atingido; o Tiramisu acelera golpe e passo a
+-- cada acerto e custa 15 grãos; o frenesi do Dente tem teto (maxAttackSpeedBonus).
 
 insert into public.items (id, name, description, type, rarity, effect, room_types, price, sprite_path, icon_path)
 values
@@ -29,17 +32,17 @@ values
   ),
   (
     'parmesao-curado', 'Parmesão Curado',
-    'O golpe que acerta solta três lascas de queijo para a frente.',
+    'Todo golpe solta três lascas de queijo, que voam até acertar um inimigo, um obstáculo ou a parede.',
     'passivo', 'comum',
-    '{"trigger": "golpe-acerta", "shards": 3, "shardRange": 90, "shardDamage": 1}',
+    '{"trigger": "golpe", "shards": 3, "shardDamage": 1}',
     '["tesouro"]', null,
     '/sprites/items/parmesao-curado/parmesao-curado.png', '/sprites/items/parmesao-curado/parmesao-curado-icone.png'
   ),
   (
     'concha-longa', 'Concha Longa',
-    'O golpe deixa uma poça de molho que deixa os inimigos lentos.',
+    'O golpe que acerta deixa uma poça de molho nos pés do inimigo, que fica lento dentro dela.',
     'passivo', 'comum',
-    '{"trigger": "golpe", "puddleDurationMs": 2000, "enemySpeedMultiplier": 0.5}',
+    '{"trigger": "golpe-acerta", "puddleDurationMs": 2000, "enemySpeedMultiplier": 0.5}',
     '["tesouro"]', null,
     '/sprites/items/concha-longa/concha-longa.png', '/sprites/items/concha-longa/concha-longa-icone.png'
   ),
@@ -61,10 +64,10 @@ values
   ),
   (
     'tiramisu', 'Tiramisu',
-    'Pegar um grão de café deixa o golpe mais rápido por alguns segundos.',
+    'Cada golpe que acerta deixa o golpe e o passo mais rápidos por alguns segundos.',
     'passivo', 'incomum',
-    '{"trigger": "pegar-grao", "attackSpeedBonus": 0.25, "bonusDurationMs": 2000}',
-    '["loja"]', 4,
+    '{"trigger": "golpe-acerta", "attackSpeedBonus": 0.25, "moveSpeedMultiplier": 1.2, "bonusDurationMs": 2000}',
+    '["loja"]', 15,
     '/sprites/items/tiramisu/tiramisu.png', '/sprites/items/tiramisu/tiramisu-icone.png'
   ),
   (
@@ -77,7 +80,7 @@ values
   ),
   (
     'chifre-da-sorte', 'Chifre da Sorte',
-    'Inimigos abatidos têm chance de soltar um grão de café a mais.',
+    'Inimigos abatidos têm chance de soltar um grão de café.',
     'passivo', 'incomum',
     '{"trigger": "abate", "extraCoinChance": 0.1}',
     '["fliperama"]', null,
@@ -95,7 +98,7 @@ values
     'dente-de-tubarao', 'Dente de Tubarão',
     'Cada abate deixa o golpe mais rápido, e inimigos com metade da vida levam dano dobrado. Custa um coração de vida máxima.',
     'passivo', 'especial',
-    '{"trigger": "abate", "attackSpeedBonus": 0.15, "bonusDurationMs": 4000, "maxStacks": 3, "lowHealthDamageMultiplier": 2, "maxHealthCost": 2}',
+    '{"trigger": "abate", "attackSpeedBonus": 0.15, "maxAttackSpeedBonus": 0.3, "bonusDurationMs": 4000, "maxStacks": 3, "lowHealthDamageMultiplier": 2, "maxHealthCost": 2}',
     '["pacto"]', null,
     '/sprites/items/dente-de-tubarao/dente-de-tubarao.png', '/sprites/items/dente-de-tubarao/dente-de-tubarao-icone.png'
   ),
