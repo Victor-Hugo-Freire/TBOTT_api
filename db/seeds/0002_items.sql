@@ -23,6 +23,7 @@
 --   Muçarela maxHealthBonus (+1 coração, que já vem cheio), Batuta invincibilityBonusMs, Elixir speedMultiplier e
 --   attackSpeedBonus (golpe de 630 para 567 ms) e Concha attackAreaMultiplier (caixa do golpe 30% maior, para a
 --   frente; o efeitos.md dizia 1,15, que quase não aparecia).
+-- Muçarela restunDelayMs (2026-11-21, com os inimigos): o mesmo inimigo só é preso de novo depois desse tempo.
 
 insert into public.items (id, name, description, type, rarity, effect, room_types, price, sprite_path, icon_path)
 values
@@ -62,7 +63,7 @@ values
     'mucarela', 'Muçarela',
     'Dá mais um coração de vida. O golpe que acerta prende o inimigo em fios de queijo.',
     'passivo', 'incomum',
-    '{"trigger": "golpe-acerta", "stunDurationMs": 800, "maxHealthBonus": 2}',
+    '{"trigger": "golpe-acerta", "stunDurationMs": 800, "restunDelayMs": 2000, "maxHealthBonus": 2}',
     '["tesouro"]', null,
     '/sprites/items/mucarela/mucarela.png', '/sprites/items/mucarela/mucarela-icone.png'
   ),
