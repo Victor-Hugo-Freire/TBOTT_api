@@ -14,6 +14,7 @@
 -- Os números são a primeira proposta de balanceamento: nenhum inimigo existe no jogo ainda.
 -- O Pinguino tem 3 golpes de vida porque o sprite mostra 3 bolas de sorvete.
 -- O Peperoncino tem 5 de vida (2 golpes), pedido do Victor em 2026-11-21: com 3, morria antes de dar perigo.
+-- A Zanzarina tem 5 de vida (2 golpes), pedido do Victor em 2026-11-21: com 3, um golpe só a derrubava.
 
 insert into public.enemies (id, name, description, health, damage, speed, behavior, min_floor, sprite_legs_path, sprite_body_path)
 values
@@ -34,7 +35,7 @@ values
   (
     'zanzarina-tarantella', 'Zanzarina Tarantella',
     'Dança no ar e mergulha com o ferrão.',
-    3, 1, 200, 'vagar', 1,
+    5, 1, 200, 'vagar', 1,
     '/sprites/enemies/zanzarina-tarantella/zanzarina-tarantella-pernas.png',
     '/sprites/enemies/zanzarina-tarantella/zanzarina-tarantella-tronco.png'
   ),
