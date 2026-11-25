@@ -23,7 +23,7 @@ values
     'cinquecento-turbo', 'Cinquecento Turbo',
     'Investe e ricocheteia nas paredes, buzina e abre o capô para esfriar.',
     60, 1,
-    '[{"id": "investida", "name": "Investida", "damage": 2}, {"id": "atacando", "name": "Buzina", "damage": 1}]',
+    '[{"id": "investida", "name": "Investida", "damage": 1}, {"id": "atacando", "name": "Buzina", "damage": 1}]',
     1, 2,
     '/sprites/bosses/cinquecento-turbo/cinquecento-turbo-pernas.png',
     '/sprites/bosses/cinquecento-turbo/cinquecento-turbo-tronco.png'
