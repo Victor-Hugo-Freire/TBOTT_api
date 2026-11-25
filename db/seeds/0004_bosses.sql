@@ -41,7 +41,7 @@ values
     'brr-brr-patapim', 'Brr Brr Patapim',
     'Pisão com onda de choque e raízes em linha.',
     66, 1,
-    '[{"id": "atacando", "name": "Pisão", "damage": 2}, {"id": "raizes", "name": "Raízes", "damage": 1}]',
+    '[{"id": "atacando", "name": "Pisão", "damage": 1}, {"id": "raizes", "name": "Raízes", "damage": 1}]',
     1, 2,
     '/sprites/bosses/brr-brr-patapim/brr-brr-patapim-pernas.png',
     '/sprites/bosses/brr-brr-patapim/brr-brr-patapim-tronco.png'
@@ -50,7 +50,7 @@ values
     'nonna-lasagnona', 'Nonna Lasagnona',
     'Colherada com onda de choque, invoca almôndegas e perde camadas de lasanha.',
     72, 1,
-    '[{"id": "atacando", "name": "Colherada", "damage": 2}, {"id": "invocar", "name": "Almôndegas", "damage": 1}]',
+    '[{"id": "atacando", "name": "Colherada", "damage": 1}, {"id": "invocar", "name": "Almôndegas", "damage": 1}]',
     1, 4,
     '/sprites/bosses/nonna-lasagnona/nonna-lasagnona-pernas.png',
     '/sprites/bosses/nonna-lasagnona/nonna-lasagnona-tronco.png'
