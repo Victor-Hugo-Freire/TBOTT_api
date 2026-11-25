@@ -86,7 +86,7 @@ values
     'tralalero-tralala', 'Tralalero Tralala',
     'Chefe final, em três fases: investida tripla, mordida, canto com pauta musical e mergulho.',
     135, 2,
-    '[{"id": "investida", "name": "Investida", "damage": 2}, {"id": "atacando", "name": "Mordida", "damage": 2}, {"id": "canto-tralala", "name": "Canto", "damage": 1}, {"id": "pauta", "name": "Pauta musical", "damage": 1}, {"id": "salto-mergulho", "name": "Mergulho", "damage": 2}]',
+    '[{"id": "investida", "name": "Investida", "damage": 1}, {"id": "atacando", "name": "Mordida", "damage": 2}, {"id": "canto-tralala", "name": "Canto", "damage": 1}, {"id": "pauta", "name": "Pauta musical", "damage": 1}, {"id": "salto-mergulho", "name": "Mergulho", "damage": 2}]',
     5, 5,
     '/sprites/bosses/tralalero-tralala/tralalero-tralala-pernas.png',
     '/sprites/bosses/tralalero-tralala/tralalero-tralala-tronco.png'
