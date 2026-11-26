@@ -14,6 +14,7 @@ import { registerProgressRoutes } from './routes/progress.routes.js';
 import { registerRankingRoutes } from './routes/ranking.routes.js';
 import { registerRunRoutes } from './routes/run.routes.js';
 import { registerSystemRoutes } from './routes/system.routes.js';
+import { registerUnlockRoutes } from './routes/unlock.routes.js';
 import { AppError } from './utils/httpError.js';
 
 const app = express();
@@ -34,6 +35,7 @@ registerGameCatalogRoutes(app);
 registerProgressRoutes(app);
 registerRankingRoutes(app);
 registerRunRoutes(app);
+registerUnlockRoutes(app);
 
 const GENERIC_ERROR_MESSAGE = 'Não foi possível concluir a operação no momento.';
 
