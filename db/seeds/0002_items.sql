@@ -79,7 +79,7 @@ values
     'rolo-de-bronze', 'Rolo de Bronze',
     'O golpe empurra o inimigo com força; se ele bater na parede, leva mais dano.',
     'passivo', 'incomum',
-    '{"trigger": "golpe-acerta", "pushDistance": 120, "wallExtraDamage": 2}',
+    '{"trigger": "golpe-acerta", "pushDistance": 60, "wallExtraDamage": 2}',
     '["chefe"]', null,
     '/sprites/items/rolo-de-bronze/rolo-de-bronze.png', '/sprites/items/rolo-de-bronze/rolo-de-bronze-icone.png'
   ),
