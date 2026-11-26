@@ -8,6 +8,7 @@ export const listCharacters = async () => {
     name: row.name,
     description: row.description,
     spritePath: row.sprite_path,
-    displayOrder: row.display_order
+    displayOrder: row.display_order,
+    startsUnlocked: row.starts_unlocked
   }));
 };

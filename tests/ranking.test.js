@@ -85,17 +85,21 @@ describe('validação dos parâmetros do ranking', () => {
 
 describe('catálogo de personagens', () => {
   test('lista os personagens pelo display_order, e não pelo nome', async () => {
-    // "Aaa" viria antes de "Tung" em ordem alfabética, mas display_order = 2 o coloca depois.
-    await db.query("insert into public.characters (id, name, display_order) values ('personagem-teste', 'Aaa Teste', 2)", []);
+    // "Aaa" viria antes de "Tung" em ordem alfabética, mas display_order = 9 o coloca depois dos três do seed.
+    await db.query("insert into public.characters (id, name, display_order) values ('personagem-teste', 'Aaa Teste', 9)", []);
 
     try {
       const rows = await findAllCharacters(db);
 
       assert.deepEqual(rows.map((row) => [row.id, row.display_order]), [
         ['tung-tung-sahur', 1],
-        ['personagem-teste', 2]
+        ['tung-tung-sabor', 2],
+        ['tung-tung-god', 3],
+        ['personagem-teste', 9]
       ]);
       assert.equal(rows[0].description, 'Ataca inimigos próximos usando um bastão.');
+      assert.equal(rows[0].starts_unlocked, true);
+      assert.equal(rows[1].starts_unlocked, false);
     } finally {
       await db.query("delete from public.characters where id = 'personagem-teste'", []);
     }
