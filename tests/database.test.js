@@ -67,27 +67,54 @@ describe('migrações e seed', () => {
     assert.equal(result.rows[0].total, 1);
   });
 
-  test('o seed cadastra apenas o personagem confirmado, sem sprite inventado', async () => {
-    const result = await db.query('select id, name, description, sprite_path, display_order from public.characters', []);
-    assert.deepEqual(result.rows, [{
-      id: 'tung-tung-sahur',
-      name: 'Tung Tung Sahur',
-      description: 'Ataca inimigos próximos usando um bastão.',
-      sprite_path: null,
-      display_order: 1
-    }]);
+  test('o seed cadastra os três personagens; só o Sahur começa liberado', async () => {
+    const result = await db.query(
+      'select id, name, sprite_path, display_order, starts_unlocked from public.characters order by display_order',
+      []
+    );
+    assert.deepEqual(result.rows, [
+      {
+        id: 'tung-tung-sahur',
+        name: 'Tung Tung Sahur',
+        sprite_path: '/sprites/characters/tung-tung-sahur/selecao.jpg',
+        display_order: 1,
+        starts_unlocked: true
+      },
+      {
+        id: 'tung-tung-sabor',
+        name: 'Tung Tung Sabor',
+        sprite_path: '/sprites/characters/tung-tung-sabor/selecao.jpg',
+        display_order: 2,
+        starts_unlocked: false
+      },
+      {
+        id: 'tung-tung-god',
+        name: 'Tung Tung God',
+        sprite_path: '/sprites/characters/tung-tung-god/selecao.jpg',
+        display_order: 3,
+        starts_unlocked: false
+      }
+    ]);
   });
 
   test('o seed restaura os dados oficiais sem apagar outros personagens', async () => {
-    await db.query("update public.characters set name = 'Nome errado', display_order = 9 where id = 'tung-tung-sahur'", []);
-    await db.query("insert into public.characters (id, name, display_order) values ('personagem-extra', 'Extra', 2)", []);
+    await db.query(
+      "update public.characters set name = 'Nome errado', display_order = 9, starts_unlocked = false where id = 'tung-tung-sahur'",
+      []
+    );
+    await db.query("insert into public.characters (id, name, display_order) values ('personagem-extra', 'Extra', 4)", []);
 
     await runSeeds(db);
 
-    const result = await db.query('select id, name, display_order from public.characters order by display_order', []);
+    const result = await db.query(
+      'select id, name, display_order, starts_unlocked from public.characters order by display_order',
+      []
+    );
     assert.deepEqual(result.rows, [
-      { id: 'tung-tung-sahur', name: 'Tung Tung Sahur', display_order: 1 },
-      { id: 'personagem-extra', name: 'Extra', display_order: 2 }
+      { id: 'tung-tung-sahur', name: 'Tung Tung Sahur', display_order: 1, starts_unlocked: true },
+      { id: 'tung-tung-sabor', name: 'Tung Tung Sabor', display_order: 2, starts_unlocked: false },
+      { id: 'tung-tung-god', name: 'Tung Tung God', display_order: 3, starts_unlocked: false },
+      { id: 'personagem-extra', name: 'Extra', display_order: 4, starts_unlocked: false }
     ]);
 
     await db.query("delete from public.characters where id = 'personagem-extra'", []);
@@ -253,15 +280,49 @@ describe('segurança (RLS e privilégios pela Data API)', () => {
 
   test('visitante sem login lê o catálogo de personagens', async () => {
     const rows = await runAsAnon(db, async () => (await db.query('select id from public.characters', [])).rows);
-    assert.equal(rows.length, 1);
+    assert.equal(rows.length, 3);
   });
 
-  test('visitante sem login não lê perfis, runs nem progresso', async () => {
+  test('visitante sem login não lê perfis, runs, progresso nem desbloqueios', async () => {
     await runAsAnon(db, async () => {
       await assert.rejects(db.query('select * from public.profiles', []), hasCode(INSUFFICIENT_PRIVILEGE));
       await assert.rejects(db.query('select * from public.game_runs', []), hasCode(INSUFFICIENT_PRIVILEGE));
       await assert.rejects(db.query('select * from public.player_progress', []), hasCode(INSUFFICIENT_PRIVILEGE));
+      await assert.rejects(db.query('select * from public.character_unlocks', []), hasCode(INSUFFICIENT_PRIVILEGE));
     });
+  });
+
+  test('jogador só lê os próprios desbloqueios e não escreve nessa tabela', async () => {
+    await db.query("insert into public.character_unlocks (user_id, character_id) values ($1, 'tung-tung-sabor')", [playerA]);
+    await db.query("insert into public.character_unlocks (user_id, character_id) values ($1, 'tung-tung-god')", [playerB]);
+
+    try {
+      await runAsUser(db, playerA, async () => {
+        const rows = (await db.query('select user_id, character_id from public.character_unlocks', [])).rows;
+        assert.deepEqual(rows, [{ user_id: playerA, character_id: 'tung-tung-sabor' }]);
+
+        await assert.rejects(
+          db.query("insert into public.character_unlocks (user_id, character_id) values ($1, 'tung-tung-god')", [playerA]),
+          hasCode(INSUFFICIENT_PRIVILEGE)
+        );
+        await assert.rejects(db.query('delete from public.character_unlocks', []), hasCode(INSUFFICIENT_PRIVILEGE));
+      });
+    } finally {
+      await db.query('delete from public.character_unlocks', []);
+    }
+  });
+
+  test('o mesmo personagem não repete para o mesmo jogador', async () => {
+    await db.query("insert into public.character_unlocks (user_id, character_id) values ($1, 'tung-tung-sabor')", [playerA]);
+
+    try {
+      await assert.rejects(
+        db.query("insert into public.character_unlocks (user_id, character_id) values ($1, 'tung-tung-sabor')", [playerA]),
+        hasCode('23505')
+      );
+    } finally {
+      await db.query('delete from public.character_unlocks', []);
+    }
   });
 
   test('jogador só enxerga o próprio perfil e as próprias runs', async () => {
@@ -454,10 +515,11 @@ describe('proteção de schema_migrations em um banco já existente', () => {
     assert.deepEqual(applied, [
       '0004_protect_schema_migrations',
       '0005_create_player_progress',
-      '0006_create_game_catalog'
+      '0006_create_game_catalog',
+      '0007_create_character_unlocks'
     ]);
     assert.deepEqual(historyAfter.rows.slice(0, 3), historyBefore.rows);
-    assert.equal(historyAfter.rows.length, 6);
+    assert.equal(historyAfter.rows.length, 7);
     assert.equal(await countNonOwnerPrivileges(oldDb), 0);
   });
 
